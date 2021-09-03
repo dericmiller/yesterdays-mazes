@@ -79,6 +79,14 @@ nmi:
 	lda #>oam
 	sta OAM_DMA
 
+	; Lock scroll at zero
+	lda #%10001000
+	sta PPU_CTRL
+	lda #0
+	sta PPU_SCROLL
+	lda #0
+    sta PPU_SCROLL
+
 	; Restore stashed registers before returning
 	pla
 	tay
@@ -89,6 +97,33 @@ nmi:
 
 ; *** Reset ***
 reset:
+    ; setup background
+    lda #%00000000    ; Disable everything before loading background
+    ; first nametable, start by clearing to empty
+    lda PPU_STATUS ; reset latch
+    lda #$20
+    sta PPU_ADDR
+    lda #$00
+    sta PPU_ADDR
+    ; empty nametable
+    lda #3
+    ldy #30 ; 30 rows
+    :
+        ldx #32 ; 32 columns
+        :
+            sta PPU_DATA
+            dex
+            bne :-
+        dey
+        bne :--
+    ; set all attributes to 0
+    lda #0
+    ldx #64 ; 64 bytes
+    :
+        sta PPU_DATA
+        dex
+        bne :-
+
     lda #%10001000    ; Enable NMI, sprites, and background (table 0)
     sta PPU_CTRL
     lda #%00011110    ; Enable sprites & Backgrounds
