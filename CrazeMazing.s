@@ -36,11 +36,15 @@ INES_SRAM   = 0 ; No battery-backed RAM
 .word nmi
 .word reset
 .word irq
-;
+
+; Reserve zeropage space for variables
+.segment "ZEROPAGE"
+player1_x: .res 1
+player1_y: .res 1
+
 ; Reserve a page for sprite data
 .segment "OAM"
 oam: .res 256        ; sprite OAM data
-
 
 ; ********
 ; * CODE *
@@ -62,20 +66,39 @@ OAM_DMA = $4014	; Write address from which to upload data into PPU OAM
 
 ; *** NMI ***
 nmi:
+	; Stash current state of registers
+	pha
+	txa
+	pha
+	tya
+	pha
+
+	; Write data from oam into the PPU
+	ldx #0
+	stx OAM_ADDR
+	lda #>oam
+	sta OAM_DMA
+
+	; Restore stashed registers before returning
+	pla
+	tay
+	pla
+	tax
+	pla
     rti
 
 ; *** Reset ***
 reset:
-    lda $80     ; Enable NMI, sprites, and background (table 0)
+    lda #%10001000    ; Enable NMI, sprites, and background (table 0)
     sta PPU_CTRL
-    lda $1E     ; Enable sprites & Backgrounds
+    lda #%00011110    ; Enable sprites & Backgrounds
     sta PPU_MASK
     lda $00     ; Turn off background scrolling
     sta PPU_ADDR
     sta PPU_ADDR
     sta PPU_SCROLL
     sta PPU_SCROLL
-    jsr load_maze
+    ;jsr load_maze
     jmp main
 
 ; *** IRQ ***
@@ -84,8 +107,27 @@ irq:
 
 ; *** Main ***
 main:
-@infinite_loop:
-    JMP @infinite_loop
+    ; initialize main
+    lda #64
+    sta player1_x
+    lda #64
+    sta player1_y
+
+    ; load palettes
+    lda #$3F
+    sta $2006
+    ldx #0
+    stx $2006 ; set PPU address to $3F00
+    :
+        lda palettes, X
+        sta $2007
+        inx
+        cpx #4
+        bcc :-
+
+@main_loop:
+    jsr draw_sprites
+    jmp @main_loop
 
 ; *** Load Maze ***
 load_maze:
@@ -108,6 +150,24 @@ load_maze:
     cpx #$04
     bne @loop
     rts
+
+; *** Draw Sprites
+; 4 bytes per sprite: y position, which sprite in the sheet, attributes, and x
+; position (in that order).  256 bytes per page / 4 per sprite = 64 sprites max
+draw_sprites:
+    lda player1_y
+    sta oam + 0
+    lda #$04
+    sta oam + 1
+    lda #%00000000 ; no flip
+    sta oam + 2
+    lda player1_x
+    sta oam + 3
+    rts
+
+; *** Hardcoded Palettes ***
+palettes:
+.byte $0F,$15,$26,$37 ; bg0 purple/pink
 
 ; *** Hardcoded Maze Map ***
 hardMap:
