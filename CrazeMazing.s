@@ -41,6 +41,7 @@ INES_SRAM   = 0 ; No battery-backed RAM
 .segment "ZEROPAGE"
 player1_x: .res 1
 player1_y: .res 1
+controller1_state: .res 1
 
 ; Reserve a page for sprite data
 .segment "OAM"
@@ -63,6 +64,16 @@ PPU_SCROLL = $2005; Set vert / horiz scrolling
 PPU_ADDR = $2006 ; Specify the address in VRAM to write data to
 PPU_DATA = $2007 ; Read/write to the address specified by $2006
 OAM_DMA = $4014	; Write address from which to upload data into PPU OAM
+CONTROLLER_1 = $4016 ; Poll either controller, read controller 1 status
+CONTROLLER_2 = $4017 ; Read controller 2 status
+CONTROLLER_A      = $01 ; Controller_state holds a byte, each bit of which...
+CONTROLLER_B      = $02 ; ...corresponds to one of these specified buttons.
+CONTROLLER_SELECT = $04
+CONTROLLER_START  = $08
+CONTROLLER_UP     = $10
+CONTROLLER_DOWN   = $20
+CONTROLLER_LEFT   = $40
+CONTROLLER_RIGHT  = $80
 
 ; *** NMI ***
 nmi:
@@ -87,6 +98,43 @@ nmi:
 	lda #0
     sta PPU_SCROLL
 
+    ; Player input
+    jsr read_controllers
+    lda controller1_state
+    and #CONTROLLER_UP
+    beq :+
+        dec player1_y
+        ; Y values wrap at 240
+        lda player1_y
+        cmp #240
+        bcc :+
+            lda #239
+            sta player1_y
+        :
+    lda controller1_state
+    and #CONTROLLER_DOWN
+    beq :+
+        inc player1_y
+        ; Y values wrap at 240
+        lda player1_y
+        cmp #240
+        bcc :+
+            lda #0
+            sta player1_y
+        :
+    lda controller1_state
+    and #CONTROLLER_LEFT
+    beq :+
+        ; X values wrap the same place bytes do, at 256
+        dec player1_x
+    :
+    lda controller1_state
+    and #CONTROLLER_RIGHT
+    beq :+
+        ; X values wrap the same place bytes do, at 256
+        inc player1_x
+    :
+
 	; Restore stashed registers before returning
 	pla
 	tay
@@ -105,6 +153,7 @@ reset:
     sta PPU_ADDR
     lda #$00
     sta PPU_ADDR
+
     ; empty nametable
     lda #3
     ldy #30 ; 30 rows
@@ -133,6 +182,19 @@ reset:
     sta PPU_ADDR
     sta PPU_SCROLL
     sta PPU_SCROLL
+
+    ; load palettes
+    lda #$3F
+    sta $2006
+    ldx #0
+    stx $2006 ; set PPU address to $3F00
+    :
+        lda palettes, X
+        sta $2007
+        inx
+        cpx #32
+        bcc :-
+
     jmp main
 
 ; *** IRQ ***
@@ -147,21 +209,12 @@ main:
     lda #64
     sta player1_y
 
-    ; load palettes
-    lda #$3F
-    sta $2006
-    ldx #0
-    stx $2006 ; set PPU address to $3F00
-    :
-        lda palettes, X
-        sta $2007
-        inx
-        cpx #32
-        bcc :-
     ; jsr load_maze
 
 @main_loop:
+    ; Draw screen
     jsr draw_sprites
+    ; Repeat forever
     jmp @main_loop
 
 ; *** Load Maze ***
@@ -186,7 +239,30 @@ load_maze:
     bne @loop
     rts
 
-; *** Draw Sprites
+; *** Read Controllers ***
+read_controllers:
+    ; latch the buttons
+    lda #1
+    sta CONTROLLER_1
+    lda #0
+    sta CONTROLLER_1
+    ; read controller 1
+    ldx #8
+    :
+        pha
+        lda CONTROLLER_1
+        ; combine low two bits and store in carry bit
+        and #%00000011
+        cmp #%00000001
+        pla
+        ; rotate carry into controller1_state variable
+        ror
+        dex
+        bne :-
+    sta controller1_state
+    rts
+
+; *** Draw Sprites ***
 ; 4 bytes per sprite: y position, which sprite in the sheet, attributes, and x
 ; position (in that order).  256 bytes per page / 4 per sprite = 64 sprites max
 draw_sprites:
