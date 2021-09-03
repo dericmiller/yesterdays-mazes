@@ -98,7 +98,6 @@ reset:
     sta PPU_ADDR
     sta PPU_SCROLL
     sta PPU_SCROLL
-    ;jsr load_maze
     jmp main
 
 ; *** IRQ ***
@@ -122,8 +121,9 @@ main:
         lda palettes, X
         sta $2007
         inx
-        cpx #4
+        cpx #32
         bcc :-
+    ; jsr load_maze
 
 @main_loop:
     jsr draw_sprites
@@ -159,7 +159,7 @@ draw_sprites:
     sta oam + 0
     lda #$04
     sta oam + 1
-    lda #%00000000 ; no flip
+    lda #%00000001 ; no flip, pallete 5
     sta oam + 2
     lda player1_x
     sta oam + 3
@@ -167,7 +167,16 @@ draw_sprites:
 
 ; *** Hardcoded Palettes ***
 palettes:
-.byte $0F,$15,$26,$37 ; bg0 purple/pink
+; background palettes
+.byte $38,$09,$1a,$28 ; greens on tan
+.byte $0f,$01,$1c,$22 ; blues on black
+.byte $0f,$06,$15,$27 ; reds on black
+.byte $0f,$2d,$3d,$30 ; greyscale
+; sprite palettes
+.byte $38,$09,$1a,$28 ; greens on tan
+.byte $0f,$01,$1c,$22 ; blues on black
+.byte $0f,$06,$15,$27 ; reds on black
+.byte $0f,$2d,$3d,$30 ; greyscale
 
 ; *** Hardcoded Maze Map ***
 hardMap:
