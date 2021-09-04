@@ -154,16 +154,25 @@ reset:
     lda #$00
     sta PPU_ADDR
 
-    ; empty nametable
-    lda #3
-    ldy #30 ; 30 rows
+    ; load hardcoded maze into nametable
+    ldy #00 ; 120 bytes per map
     :
-        ldx #32 ; 32 columns
+        ldx #00 ; 8 bits per byte
         :
+            lda hard_maze, y
+            and bit_mask, x
+            beq hop1
+                lda #$31
+            hop1:
+            bne hop2
+                lda #$30
+            hop2:
             sta PPU_DATA
-            dex
+            inx
+            cpx #8
             bne :-
-        dey
+        iny
+        cpy #120
         bne :--
     ; set all attributes to 0
     lda #0
@@ -204,9 +213,9 @@ irq:
 ; *** Main ***
 main:
     ; initialize main
-    lda #64
+    lda #8
     sta player1_x
-    lda #64
+    lda #199q
     sta player1_y
 
     ; jsr load_maze
@@ -289,7 +298,17 @@ palettes:
 .byte $0f,$06,$15,$27 ; reds on black
 .byte $0f,$2d,$3d,$30 ; greyscale
 
+; *** Bit Mask for collision lookup ***
+bit_mask:
+.byte %10000000
+.byte %01000000
+.byte %00100000
+.byte %00010000
+.byte %00001000
+.byte %00000100
+.byte %00000010
+.byte %00000001
+
 ; *** Hardcoded Maze Map ***
-hardMap:
     .include "HardcodedMap.s"
 
