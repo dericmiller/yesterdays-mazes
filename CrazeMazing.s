@@ -103,6 +103,13 @@ nmi:
     lda controller1_state
     and #CONTROLLER_UP
     beq :+
+        ; *** Lock horiz to 8-px vert stripe
+        lda player1_x
+        clc
+        adc #4
+        and #%11111000
+        sta player1_x
+        ; *** Move up
         dec player1_y
         ; Y values wrap at 240
         lda player1_y
@@ -114,6 +121,13 @@ nmi:
     lda controller1_state
     and #CONTROLLER_DOWN
     beq :+
+        ; *** Lock horiz to 8-px vert stripe
+        lda player1_x
+        clc
+        adc #4
+        and #%11111000
+        sta player1_x
+        ; *** Move down
         inc player1_y
         ; Y values wrap at 240
         lda player1_y
@@ -125,12 +139,30 @@ nmi:
     lda controller1_state
     and #CONTROLLER_LEFT
     beq :+
+        ; *** Lock vert to 8-px horiz stripe
+        lda player1_y
+        clc
+        adc #4
+        and #%11111000
+        tay
+        dey
+        sty player1_y
+        ; *** Move left
         ; X values wrap the same place bytes do, at 256
         dec player1_x
     :
     lda controller1_state
     and #CONTROLLER_RIGHT
     beq :+
+        ; *** Lock vert to 8-px horiz stripe
+        lda player1_y
+        clc
+        adc #4
+        and #%11111000
+        tay
+        dey
+        sty player1_y
+        ; *** Move right
         ; X values wrap the same place bytes do, at 256
         inc player1_x
     :
@@ -215,7 +247,7 @@ main:
     ; initialize main
     lda #8
     sta player1_x
-    lda #199q
+    lda #199
     sta player1_y
 
     ; jsr load_maze
