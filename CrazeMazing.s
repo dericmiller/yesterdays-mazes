@@ -42,6 +42,7 @@ INES_SRAM   = 0 ; No battery-backed RAM
 player1_x: .res 1
 player1_y: .res 1
 controller1_state: .res 1
+tmp: .res 1
 
 ; Reserve a page for sprite data
 .segment "OAM"
@@ -103,68 +104,104 @@ nmi:
     lda controller1_state
     and #CONTROLLER_UP
     beq :+
-        ; *** Lock horiz to 8-px vert stripe
-        lda player1_x
-        clc
-        adc #4
-        and #%11111000
-        sta player1_x
-        ; *** Move up
-        dec player1_y
-        ; Y values wrap at 240
+        lda player1_x ; We use a pixel on the middle of the right side of...
+        adc #4 ; ... the sprite for rightward collision detection.
+        tax
         lda player1_y
-        cmp #240
-        bcc :+
-            lda #239
-            sta player1_y
-        :
+        adc #0
+        tay
+        jsr check_for_collision
+        bne up_wall ; If there's a wall in the way, don't move.
+            ; *** Lock horiz to 8-px vert stripe
+            lda player1_x
+            clc
+            adc #4
+            and #%11111000
+            sta player1_x
+            ; *** Move up
+            dec player1_y
+            ; Y values wrap at 240
+            lda player1_y
+            cmp #240
+            bcc :+
+                lda #239
+                sta player1_y
+        up_wall:
+    :
     lda controller1_state
     and #CONTROLLER_DOWN
     beq :+
-        ; *** Lock horiz to 8-px vert stripe
-        lda player1_x
-        clc
-        adc #4
-        and #%11111000
-        sta player1_x
-        ; *** Move down
-        inc player1_y
-        ; Y values wrap at 240
+        lda player1_x ; We use a pixel on the middle of the bottom side of...
+        adc #4 ; ... the sprite for downward collision detection.
+        tax
         lda player1_y
-        cmp #240
-        bcc :+
-            lda #0
-            sta player1_y
-        :
+        adc #9
+        tay
+        jsr check_for_collision
+        bne down_wall ; If there's a wall in the way, don't move.
+            ; *** Lock horiz to 8-px vert stripe
+            lda player1_x
+            clc
+            adc #4
+            and #%11111000
+            sta player1_x
+            ; *** Move down
+            inc player1_y
+            ; Y values wrap at 240
+            lda player1_y
+            cmp #240
+            bcc :+
+                lda #0
+                sta player1_y
+        down_wall:
+    :
     lda controller1_state
     and #CONTROLLER_LEFT
     beq :+
-        ; *** Lock vert to 8-px horiz stripe
+        lda player1_x ; We use a pixel on the middle of the left side of...
+        sbc #0 ; ... the sprite for leftward collision detection.
+        tax
         lda player1_y
-        clc
         adc #4
-        and #%11111000
         tay
-        dey
-        sty player1_y
-        ; *** Move left
-        ; X values wrap the same place bytes do, at 256
-        dec player1_x
+        jsr check_for_collision
+        bne left_wall ; If there's a wall in the way, don't move.
+            ; *** Lock vert to 8-px horiz stripe
+            lda player1_y
+            clc
+            adc #4
+            and #%11111000
+            tay
+            dey
+            sty player1_y
+            ; *** Move left
+            ; X values wrap the same place bytes do, at 256
+            dec player1_x
+        left_wall:
     :
     lda controller1_state
     and #CONTROLLER_RIGHT
     beq :+
-        ; *** Lock vert to 8-px horiz stripe
+        lda player1_x ; We use a pixel on the middle of the right side of...
+        adc #8 ; ... the sprite for rightward collision detection.
+        tax
         lda player1_y
-        clc
         adc #4
-        and #%11111000
         tay
-        dey
-        sty player1_y
-        ; *** Move right
-        ; X values wrap the same place bytes do, at 256
-        inc player1_x
+        jsr check_for_collision
+        bne right_wall ; If there's a wall in the way, don't move.
+            ; *** Lock vert to 8-px horiz stripe
+            lda player1_y
+            clc
+            adc #4
+            and #%11111000
+            tay
+            dey
+            sty player1_y
+            ; *** Move right
+            ; X values wrap the same place bytes do, at 256
+            inc player1_x
+        right_wall:
     :
 
 	; Restore stashed registers before returning
@@ -316,6 +353,35 @@ draw_sprites:
     lda player1_x
     sta oam + 3
     rts
+
+; *** Check for Collisions ***
+check_for_collision:
+    txa ; x / 64
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    sta tmp
+    tya ; y / 8
+    lsr
+    lsr
+    lsr
+    asl ; * 4
+    asl
+    clc
+    adc tmp
+    tay ; byte index
+    txa ; x / 8
+    lsr
+    lsr
+    lsr
+    and #%0111
+    tax ; bit mask index
+    lda hard_maze, y
+    and bit_mask, x ; Sets zero flag in case of collision...
+    rts ; ...and returns.
 
 ; *** Hardcoded Palettes ***
 palettes:
