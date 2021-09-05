@@ -33,7 +33,7 @@ finalArray = [1 for i in range(xSizeFinal * ySizeFinal)]
 # Step 2: pick a random cell, mark it part of the maze, and add it to the stack:
 currentCell = random.randint(0, 191)
 xPos, yPos = coordinates(currentCell, xSizeCells)
-count = 1
+count = 2
 cellsArray[currentCell] = count
 finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = count
 theStack.append(currentCell)
@@ -41,12 +41,13 @@ theStack.append(currentCell)
 while len(theStack) > 0:
     currentCell = theStack.pop()
     xPos, yPos = coordinates(currentCell, xSizeCells)
+    finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = count
     direction = random.randint(0, 3)
     print("Current cell: ", currentCell)
     print("Direction: ", direction)
     print("xPos: ", xPos)
     print("yPos: ", yPos)
-    for i in range(0, 3):
+    for i in range(0, 4):
         if direction == 0:
             # Can we extend the maze upward?  If so, do it.
             if currentCell > (xSizeCells - 1) and cellsArray[currentCell - xSizeCells] == 0:
@@ -54,10 +55,10 @@ while len(theStack) > 0:
                 theStack.append(currentCell)
                 # walls
                 vertWallsArray[((yPos-1) * xSizeVertWalls) + xPos] = 0
-                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2) - xSizeFinal] = 0
+                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2) - xSizeFinal] = count
                 # cells
                 cellsArray[currentCell - xSizeCells] = count
-                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = 0
+                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = count
                 currentCell = currentCell - xSizeCells
                 theStack.append(currentCell)
                 print("Picked Up")
@@ -69,10 +70,10 @@ while len(theStack) > 0:
                 theStack.append(currentCell)
                 # walls
                 vertWallsArray[((yPos) * xSizeVertWalls) + xPos] = 0
-                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2) + xSizeFinal] = 0
+                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2) + xSizeFinal] = count
                 # cells
                 cellsArray[currentCell + xSizeCells] = count
-                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = 0
+                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = count
                 currentCell = currentCell + xSizeCells
                 theStack.append(currentCell)
                 print("Picked Down")
@@ -84,10 +85,10 @@ while len(theStack) > 0:
                 theStack.append(currentCell)
                 #walls
                 horizWallsArray[(yPos * xSizeHorizWalls) + xPos - 1] = 0
-                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2) - 1] = 0
+                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2) - 1] = count
                 #cells
                 cellsArray[currentCell - 1] = count
-                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = 0
+                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = count
                 currentCell = currentCell - 1
                 theStack.append(currentCell)
                 print("Picked Left")
@@ -99,10 +100,10 @@ while len(theStack) > 0:
                 theStack.append(currentCell)
                 # walls
                 horizWallsArray[(yPos * xSizeHorizWalls) + xPos] = 0
-                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2) + 1] = 0
+                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2) + 1] = count
                 # cells
                 cellsArray[currentCell + 1] = count
-                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = 0
+                finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = count
                 currentCell = currentCell + 1
                 theStack.append(currentCell)
                 print("Picked Right")
@@ -117,6 +118,7 @@ while len(theStack) > 0:
     print("Cells array:")
     for i in range(0, ySizeCells):
         print(padArray[i*xSizeCells: i*xSizeCells + xSizeCells])
+    print()
 
 #for idx, val in enumerate(vertWallsArray):
 #    xPos, yPos = coordinates(idx, xSizeVertWalls)
@@ -138,9 +140,9 @@ print("***FINAL ARRAY ***")
 padFinalArray = [str(item).zfill(3) for item in finalArray]
 for i in range(0, xSizeCells * ySizeCells):
     xPos, yPos = coordinates(i, xSizeCells)
-    finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = 0
+    # finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = 0
 for i in range(0, ySizeFinal):
     print(padFinalArray[i*xSizeFinal: i*xSizeFinal + xSizeFinal])
 print()
 for i in range(0, ySizeFinal):
-    print(finalArray[i*xSizeFinal: i*xSizeFinal + xSizeFinal])
+    print(*finalArray[i*xSizeFinal: i*xSizeFinal + xSizeFinal])
