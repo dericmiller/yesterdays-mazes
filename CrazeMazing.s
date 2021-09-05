@@ -387,13 +387,13 @@ check_for_collision:
 palettes:
 ; background palettes
 .byte $38,$09,$1a,$28 ; greens on tan
-.byte $0f,$01,$1c,$22 ; blues on black
 .byte $0f,$06,$15,$27 ; reds on black
+.byte $0f,$01,$1c,$22 ; blues on black
 .byte $0f,$2d,$3d,$30 ; greyscale
 ; sprite palettes
 .byte $38,$09,$1a,$28 ; greens on tan
-.byte $0f,$01,$1c,$22 ; blues on black
 .byte $0f,$06,$15,$27 ; reds on black
+.byte $0f,$01,$1c,$22 ; blues on black
 .byte $0f,$2d,$3d,$30 ; greyscale
 
 ; *** Bit Mask for collision lookup ***
