@@ -2,21 +2,30 @@
 # and sandbox because 6502 assembly can be a beast sometimes.
 # The NES screen is 32 8x8 tiles wide, and 30 tiles tall, but visibility of the
 # top and bottom lines varies by screen and emulator, so we throw out the top
-# two lines, and the bottom one line, leaving us with 27 lines to deal with.
+# two lines, and the bottom one line, leaving us with 27 lines to deal with, and
+# we spend two of those on the walls immediately above and below the maze.
 
 import random
 import math
 
+# Array size constants; we use one-dimensional arrays to hold two-dimensional
+# data.  These numbers represent the x & y sizes of the implied two-dimensional
+# arrays.
 xSizeFinal = 29
 ySizeFinal = 25
 xSizeCells = 15
 ySizeCells = 13
 
+# coordinates returns x and y coordinates for the Nth element in a
+# one-dimensional array if it were instead a two-dimensional array of width
+# x_size.
 def coordinates(number, x_size):
     x_value = number % x_size
     y_value = math.floor(number/x_size)
     return x_value, y_value
 
+# drawer is used in the map after the maze has been generated to draw it; paths
+# get represented by `.`, while walls get represented by `▓`.
 def drawer(cell):
     if cell > 1:
         return "."
@@ -60,6 +69,10 @@ count = 2
 finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = count
 theStack.append(currentCell)
 
+# Step 3: While there's a stack, pop a cell off the stack as the current cell;
+# if there's at least one unvisited neighbor, pick an unvisited neighbor at
+# random, remove the wall between it and the current cell, mark it as visited,
+# and push it to the stack:
 while len(theStack) > 0:
     currentCell = theStack.pop()
     xPos, yPos = coordinates(currentCell, xSizeCells)
@@ -128,15 +141,14 @@ while len(theStack) > 0:
         print("New Direction: ", direction)
     print("The Stack: ")
     print(theStack)
-    padFinalArray = [str(item).zfill(3) for item in finalArray]
     draw = list(map(drawer, finalArray))
     print("Current Maze: ")
     for i in range(0, ySizeFinal):
         print(*draw[i*xSizeFinal: i*xSizeFinal + xSizeFinal])
-        # print(draw)
-    input()
+    # input() # Uncomment this line to step through one tick at a time.
 
-print("***FINAL ARRAY ***")
+# Step 4: Assemble and display the results:
+print("*** FINAL ARRAY ***")
 padFinalArray = [str(item).zfill(3) for item in finalArray]
 for i in range(0, ySizeFinal):
     print(padFinalArray[i*xSizeFinal: i*xSizeFinal + xSizeFinal])
