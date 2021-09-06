@@ -11,30 +11,52 @@ xSizeFinal = 29
 ySizeFinal = 25
 xSizeCells = 15
 ySizeCells = 13
-xSizeVertWalls = 15
-ySizeVertWalls = 12
-xSizeHorizWalls = 14
-ySizeHorizWalls = 13
-
 
 def coordinates(number, x_size):
     x_value = number % x_size
     y_value = math.floor(number/x_size)
     return x_value, y_value
 
+def drawer(cell):
+    if cell > 1:
+        return "."
+    else:
+        return "▓"
 
 # Step 1: Make & initialize working arrays:
 theStack = []
-cellsArray = [0 for i in range(xSizeCells * ySizeCells)]
-vertWallsArray = [1 for j in range(xSizeVertWalls * ySizeVertWalls)]
-horizWallsArray = [1 for k in range(xSizeHorizWalls * ySizeHorizWalls)]
-finalArray = [1 for i in range(xSizeFinal * ySizeFinal)]
+finalArray = [
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+]
 
 # Step 2: pick a random cell, mark it part of the maze, and add it to the stack:
 currentCell = random.randint(0, 191)
 xPos, yPos = coordinates(currentCell, xSizeCells)
 count = 2
-cellsArray[currentCell] = count
 finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = count
 theStack.append(currentCell)
 
@@ -50,14 +72,12 @@ while len(theStack) > 0:
     for i in range(0, 4):
         if direction == 0:
             # Can we extend the maze upward?  If so, do it.
-            if currentCell > (xSizeCells - 1) and cellsArray[currentCell - xSizeCells] == 0:
+            if currentCell > (xSizeCells - 1) and finalArray[(xPos * 2) + ((yPos-1) * xSizeFinal * 2)] == 0:
                 count += 1
                 theStack.append(currentCell)
-                # walls
-                vertWallsArray[((yPos-1) * xSizeVertWalls) + xPos] = 0
+                # remove walls
                 finalArray[(xPos * 2) + (yPos * xSizeFinal * 2) - xSizeFinal] = count
-                # cells
-                cellsArray[currentCell - xSizeCells] = count
+                # mark cells
                 finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = count
                 currentCell = currentCell - xSizeCells
                 theStack.append(currentCell)
@@ -65,14 +85,12 @@ while len(theStack) > 0:
                 break
         if direction == 1:
             # Can we extend the maze downward?  If so, do it.
-            if currentCell < ((xSizeCells * ySizeCells) - xSizeCells) and cellsArray[currentCell + xSizeCells] == 0:
+            if currentCell < ((xSizeCells * ySizeCells) - xSizeCells) and finalArray[(xPos * 2) + ((yPos + 1) * xSizeFinal * 2)] == 0:
                 count += 1
                 theStack.append(currentCell)
-                # walls
-                vertWallsArray[((yPos) * xSizeVertWalls) + xPos] = 0
+                # remove walls
                 finalArray[(xPos * 2) + (yPos * xSizeFinal * 2) + xSizeFinal] = count
-                # cells
-                cellsArray[currentCell + xSizeCells] = count
+                # mark cells
                 finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = count
                 currentCell = currentCell + xSizeCells
                 theStack.append(currentCell)
@@ -80,14 +98,12 @@ while len(theStack) > 0:
                 break
         if direction == 2:
             # Can we extend the maze leftward?  If so, do it.
-            if xPos > 0 and cellsArray[currentCell - 1] == 0:
+            if xPos > 0 and finalArray[((xPos - 1) * 2) + (yPos * xSizeFinal * 2)] == 0:
                 count += 1
                 theStack.append(currentCell)
-                #walls
-                horizWallsArray[(yPos * xSizeHorizWalls) + xPos - 1] = 0
+                # remove walls
                 finalArray[(xPos * 2) + (yPos * xSizeFinal * 2) - 1] = count
-                #cells
-                cellsArray[currentCell - 1] = count
+                # mark cells
                 finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = count
                 currentCell = currentCell - 1
                 theStack.append(currentCell)
@@ -95,14 +111,12 @@ while len(theStack) > 0:
                 break
         if direction == 3:
             # Can we extend the maze rightward?  If so, do it.
-            if xPos < (xSizeCells - 1) and cellsArray[currentCell + 1] == 0:
+            if xPos < (xSizeCells - 1) and finalArray[((xPos + 1) * 2) + (yPos * xSizeFinal * 2)] == 0:
                 count += 1
                 theStack.append(currentCell)
-                # walls
-                horizWallsArray[(yPos * xSizeHorizWalls) + xPos] = 0
+                # remove walls
                 finalArray[(xPos * 2) + (yPos * xSizeFinal * 2) + 1] = count
-                # cells
-                cellsArray[currentCell + 1] = count
+                # mark cells
                 finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = count
                 currentCell = currentCell + 1
                 theStack.append(currentCell)
@@ -112,37 +126,21 @@ while len(theStack) > 0:
         if direction > 3:
             direction = 0
         print("New Direction: ", direction)
-    print("The Stack:")
+    print("The Stack: ")
     print(theStack)
-    padArray = [str(item).zfill(3) for item in cellsArray]
-    print("Cells array:")
-    for i in range(0, ySizeCells):
-        print(padArray[i*xSizeCells: i*xSizeCells + xSizeCells])
-    print()
+    padFinalArray = [str(item).zfill(3) for item in finalArray]
+    draw = list(map(drawer, finalArray))
+    print("Current Maze: ")
+    for i in range(0, ySizeFinal):
+        print(*draw[i*xSizeFinal: i*xSizeFinal + xSizeFinal])
+        # print(draw)
+    input()
 
-#for idx, val in enumerate(vertWallsArray):
-#    xPos, yPos = coordinates(idx, xSizeVertWalls)
-#    finalArray[((yPos + 1) * xSizeFinal)+(xPos * 2)] = val
-#for idx, val in enumerate(horizWallsArray):
-#    xPos, yPos = coordinates(idx, xSizeHorizWalls)
-#    finalArray[(yPos * xSizeFinal) + ((xPos * 2) + 1)] = val
-
-print()
-print("***VERT WALLS ARRAY ***")
-for i in range(0, ySizeVertWalls):
-    print(vertWallsArray[i*xSizeVertWalls: i*xSizeVertWalls + xSizeVertWalls])
-print()
-print("***HORIZ WALLS ARRAY ***")
-for i in range(0, ySizeHorizWalls):
-    print(horizWallsArray[i*xSizeHorizWalls: i*xSizeHorizWalls + xSizeHorizWalls])
-print()
 print("***FINAL ARRAY ***")
 padFinalArray = [str(item).zfill(3) for item in finalArray]
-for i in range(0, xSizeCells * ySizeCells):
-    xPos, yPos = coordinates(i, xSizeCells)
-    # finalArray[(xPos * 2) + (yPos * xSizeFinal * 2)] = 0
 for i in range(0, ySizeFinal):
     print(padFinalArray[i*xSizeFinal: i*xSizeFinal + xSizeFinal])
 print()
+print("*** Copyable Final Array ***")
 for i in range(0, ySizeFinal):
     print(*finalArray[i*xSizeFinal: i*xSizeFinal + xSizeFinal])
