@@ -145,7 +145,7 @@ while len(theStack) > 0:
     print("Current Maze: ")
     for i in range(0, ySizeFinal):
         print(*draw[i*xSizeFinal: i*xSizeFinal + xSizeFinal])
-    # input() # Uncomment this line to step through one tick at a time.
+    input() # Uncomment this line to step through one tick at a time.
 
 # Step 4: Assemble and display the results:
 print("*** FINAL ARRAY ***")

@@ -160,7 +160,7 @@ while len(theStack) > 0:
     padArray = [str(item).zfill(3) for item in cellsArray]
     for i in range(0, ySizeCells):
         print(padArray[i*xSizeCells: i*xSizeCells + xSizeCells])
-    # input() # Uncomment this line to step through one tick at a time.
+    input() # Uncomment this line to step through one tick at a time.
 
 
 # Step 4: Assemble and display the results:
