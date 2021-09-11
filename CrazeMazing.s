@@ -95,18 +95,18 @@ CONTROLLER_UP     = $10
 CONTROLLER_DOWN   = $20
 CONTROLLER_LEFT   = $40
 CONTROLLER_RIGHT  = $80
-XSIZEFINAL = #29
-YSIZEFINAL = #25
-XSIZECELLS = #15
-YSIZECELLS = #13
-TOTSIZECELLS = #195
-XSIZEVERT  = #15
-YSIZEVERT  = #12
-TOTSIZEVERT = #180
-XSIZEHORIZ = #14
-YSIZEHORIZ = #13
-TOTSIZEHORIZ = #182
-SIZEMAZE = #120
+XSIZEFINAL = 29
+YSIZEFINAL = 25
+XSIZECELLS = 15
+YSIZECELLS = 13
+TOTSIZECELLS = 195
+XSIZEVERT  = 15
+YSIZEVERT  = 12
+TOTSIZEVERT = 180
+XSIZEHORIZ = 14
+YSIZEHORIZ = 13
+TOTSIZEHORIZ = 182
+SIZEMAZE = 120
 
 ; *** NMI ***
 nmi:
@@ -147,13 +147,13 @@ nmi:
         tay
         jsr check_for_collision
         bne up_wall ; If there's a wall in the way, don't move.
-            ; *** Lock horiz to 8-px vert stripe
+            ; Lock horiz to 8-px vert stripe
             lda player1_x
             clc
             adc #4
             and #%11111000
             sta player1_x
-            ; *** Move up
+            ; Move up
             dec player1_y
             ; Y values wrap at 240
             lda player1_y
@@ -174,13 +174,13 @@ nmi:
         tay
         jsr check_for_collision
         bne down_wall ; If there's a wall in the way, don't move.
-            ; *** Lock horiz to 8-px vert stripe
+            ; Lock horiz to 8-px vert stripe
             lda player1_x
             clc
             adc #4
             and #%11111000
             sta player1_x
-            ; *** Move down
+            ; Move down
             inc player1_y
             ; Y values wrap at 240
             lda player1_y
@@ -201,7 +201,7 @@ nmi:
         tay
         jsr check_for_collision
         bne left_wall ; If there's a wall in the way, don't move.
-            ; *** Lock vert to 8-px horiz stripe
+            ; Lock vert to 8-px horiz stripe
             lda player1_y
             clc
             adc #4
@@ -209,7 +209,7 @@ nmi:
             tay
             dey
             sty player1_y
-            ; *** Move left
+            ; Move left
             ; X values wrap the same place bytes do, at 256
             dec player1_x
         left_wall:
@@ -225,7 +225,7 @@ nmi:
         tay
         jsr check_for_collision
         bne right_wall ; If there's a wall in the way, don't move.
-            ; *** Lock vert to 8-px horiz stripe
+            ; Lock vert to 8-px horiz stripe
             lda player1_y
             clc
             adc #4
@@ -233,9 +233,13 @@ nmi:
             tay
             dey
             sty player1_y
-            ; *** Move right
+            ; Move right
             ; X values wrap the same place bytes do, at 256
             inc player1_x
+            lda player1_x   ; Check for the win.
+            cmp #245
+            bcc right_wall  ; If we're not out of the maze, keep rolling.
+                jmp new_maze
         right_wall:
     :
 
@@ -249,6 +253,25 @@ nmi:
 
 ; *** Reset ***
 reset:
+    ; clear the NES RAM
+    	lda #0
+    	ldx #0
+    	:
+    		sta $0000, X
+    		sta $0100, X
+    		sta $0200, X
+    		sta $0300, X
+    		sta $0400, X
+    		sta $0500, X
+    		sta $0600, X
+    		sta $0700, X
+    		inx
+    		bne :-
+    lda #$06    ; seed random number generator with non-zero number
+    sta random
+new_maze:
+    jsr rng
+    jmp skip_init; XXX
     ; setup background
     lda #%00000000    ; Disable everything before loading background
     ; first nametable, start by clearing to empty
@@ -258,6 +281,7 @@ reset:
     lda #$00
     sta PPU_ADDR
 
+    jmp skip_hard_maze ; XXX
     ; load hardcoded maze into nametable
     ldy #00 ; 120 bytes per map
     :
@@ -286,6 +310,7 @@ reset:
         dex
         bne :-
 
+skip_hard_maze:
     lda #%10001000    ; Enable NMI, sprites, and background (table 0)
     sta PPU_CTRL
     lda #%00011110    ; Enable sprites & Backgrounds
@@ -298,16 +323,16 @@ reset:
 
     ; load palettes
     lda #$3F
-    sta $2006
+    sta PPU_ADDR
     ldx #0
-    stx $2006 ; set PPU address to $3F00
+    stx PPU_ADDR ; set PPU address to $3F00
     :
         lda palettes, X
-        sta $2007
+        sta PPU_DATA
         inx
         cpx #32
         bcc :-
-
+skip_init:
     jmp main
 
 ; *** IRQ ***
@@ -322,8 +347,8 @@ main:
     lda #$C7
     sta player1_y
 
-    jsr maze_gen
-    jsr make_collision_map
+    jsr maze_gen ; XXX
+    jsr make_collision_map ; XXX
     jsr load_maze
 
 @main_loop:
@@ -333,15 +358,29 @@ main:
     jmp @main_loop
 
 
+jmp_make_collision_map: ; beq range hack
+    jmp make_collision_map
+
 ; *** Generate Maze ***
 maze_gen:
+    ; Reset the cells array to 0s, and the vert & horiz walls arrays to 1.
+    ldx #$00
+    :
+    lda #$00
+    sta cells, x
+    lda #$01
+    sta vwalls, x
+    sta hwalls, x
+    inx
+    bne :-
     ; First pick a random cell, mark it as part of the maze,
     ; and then add it to the stack:
-    lda #$00
-    pha                 ; Push 0 to the stack.  We'll use this later to know
+    lda #$FF
+    pha                 ; Push ff to the stack.  We'll use this later to know
         ; that we're done looping through gen_loop
     jsr rng             ; Get a random number.
     and #%01111111      ; Drop it to between 0 and $7F (dec 127) inclusive.
+    clc
     adc #$20            ; Add twentex (dec 32) to it.
     sta current_cell    ; We'll use that number as our starting cell.
     pha                 ; Push the starting cell to the stack
@@ -351,16 +390,17 @@ maze_gen:
     sta cells, x        ; Mark starting cell in cells array with count of 1.
 gen_loop:
     pla
-    beq make_collision_map  ; If we've popped the 0 off the stack, we're done.
+    cmp #$FF
+    beq jmp_make_collision_map  ; If we popped the 0 off the stack, we're done.
     sta current_cell    ; We got the current cell off the stack.
-    ldy XSIZECELLS
+    ldy #XSIZECELLS
     jsr divide  ; Divide takes in the current cell via the accumulator and the
         ; width of the cells array via the X register and gives us back the
         ; x-coordinate of the current cell in the accumulator, and the
         ; y-coordinate in the Y register.
     sta x_coord
     sty y_coord
-    lda #$4
+    lda #$5
     sta tried_count ; We try up to all 4 directions once, and count this down.
     jsr rng         ; Get a random number,
     and #%00000011  ; then drop it to 0-3 to use as a random direction.
@@ -369,18 +409,21 @@ gen_loop:
     dex         ; subtract one,
     beq dir_down; keep iterating until you've chosen an initial direction.
     dex
-    beq dir_left
+    beq jmp_dir_left
     dex
-    beq dir_right;
+    jmp dir_right
+jmp_dir_left:   ; This is because the dir_left label is out of range.
+    jmp dir_left
 dir_up:
     dec tried_count     ; If we've tried all the directions and failed, ...
     beq gen_loop        ; ... give up and go back to the top.
     lda current_cell    ; If currentCell < xSizeCells - 1, we can't go up.
-    inc
-    sbc XSIZECELLS
-    bmi dir_down
+    cmp #XSIZECELLS
+    bcc dir_down
+    clc
     lda current_cell    ; If cellsArray[currentCell - xSizeCells] != 0, ...
-    sbc XSIZECELLS      ; ... we can't go up.
+    sec
+    sbc #XSIZECELLS      ; ... we can't go up.
     tax
     lda cells, x
     bne dir_down
@@ -389,60 +432,74 @@ dir_up:
     pha ; Push the curret cell to the stack.
     ldy y_coord ; Get ((y_coord-1) * XSIZEVERT) + x_coord into X,...
     dey
-    lda XSIZEVERT
+    lda #XSIZEVERT
     jsr multiply
+    clc
     adc x_coord
     tax
-    lda cell_count      ; ... then remove the vertical wall.
+    lda cell_count      ; XXX ... then remove the vertical wall.
+    lda #0
     sta vwalls, x
     lda current_cell    ; Mark the cell as visited with cell_count.
-    sbc XSIZECELLS
+    sec
+    sbc #XSIZECELLS
     tax
     lda cell_count
     sta cells, x
     lda current_cell    ; And update the current cell...
-    sbc XSIZECELLS
+    sec
+    sbc #XSIZECELLS
     sta current_cell    ; ... to be the new one we stepped up to.
-    pha current_cell    ; Push the new cell to the stack, ...
+    pha                 ; Push the new cell to the stack, ...
     jmp gen_loop        ; ... then head back to the top.
 dir_down:
     dec tried_count     ; If we've tried all the directions and failed, ...
     beq gen_loop        ; ... give up and go back to the top.
-    lda TOTSIZECELLS    ; If current_cell > TOTSIZECELLS - XSIZECELLS, ...
-    sbc XSIZECELLS      ; ... we can't go down.
-    sbc current_cell
-    bmi dir_left
-    lda current_cell    ; If cells[current_cell + XSIZECELLS] != 0, ...
-    adc XSIZECELLS      ; ... we can't go down.
+    lda #TOTSIZECELLS    ; If current_cell > TOTSIZECELLS - XSIZECELLS, ...
+    sec
+    sbc #XSIZECELLS      ; ... we can't go down.
+    sbc #$01
+    cmp current_cell
+    bcc dir_left
+    clc
+    lda current_cell     ; If cells[current_cell + XSIZECELLS] != 0, ...
+    clc
+    adc #XSIZECELLS      ; ... we can't go down.
     tax
     lda cells, x
     bne dir_left
     inc cell_count
     lda current_cell
     pha ; Push the curret cell to the stack.
-    lda XSIZEVERT   ; Get (y_coord * XSIZEVERT) + x_coord into X, ...
+    lda #XSIZEVERT   ; Get (y_coord * XSIZEVERT) + x_coord into X, ...
     ldy y_coord
     jsr multiply
+    clc
     adc x_coord
     tax
-    lda cell_count  ; ... then remove the vertical wall.
+    lda cell_count  ; XXX ... then remove the vertical wall.
+    lda #0
     sta vwalls, x
     lda current_cell    ; Mark the cell as visited with cell_count.
-    adc XSIZECELLS
+    clc
+    adc #XSIZECELLS
     tax
     lda cell_count
     sta cells, x
     lda current_cell    ; And update the current cell...
-    adc XSIZECELLS
+    clc
+    adc #XSIZECELLS
     sta current_cell    ; ... to be the new one we've just stepped to.
-    pha current_cell    ; Push the new current cell to the stack...
+    pha                 ; Push the new current cell to the stack...
+jmp_gen_loop_1:
     jmp gen_loop        ; ... and head back to the top.
 dir_left:
     dec tried_count     ; If we've tried all the directions and failed, ...
-    beq gen_loop        ; ... give up and go back to the top.
+    beq jmp_gen_loop_1        ; ... give up and go back to the top.
     lda x_coord         ; If x_coord == 0, we can't go left.
     beq dir_right
-    lda current_cell    ; If cells[current_cell - 1] != 0, we can't go down.
+    lda current_cell    ; If cells[current_cell - 1] != 0, we can't go left.
+    sec
     sbc #1
     tax
     lda cells, x
@@ -450,102 +507,126 @@ dir_left:
     inc cell_count
     lda current_cell
     pha ; Push the current cell to the stack.
-    lda XSIZEHORIZ  ; Get (y_coord * XSIZEHORIZ) + x_coord - 1 into X ...
+    lda #XSIZEHORIZ  ; Get (y_coord * XSIZEHORIZ) + x_coord - 1 into X ...
     ldy y_coord
     jsr multiply
+    clc
     adc x_coord
+    sec
     sbc #1
     tax
-    lda cell_count
-    sta cells, x    ; ... then remove the horizontal wall.
+    lda cell_count  ; XXX
+    lda #0
+    sta hwalls, x    ; ... then remove the horizontal wall.
     lda current_cell    ; Mark the cell as visited with cell_count.
+    sec
     sbc #1
     tax
     lda cell_count
     sta cells, x
     lda current_cell    ; And update the current cell...
+    sec
     sbc #1
     sta current_cell    ; ... to be the new one we've just stepped to.
-    pha current_cell    ; Push the new current cell to the stack...
+    pha                 ; Push the new current cell to the stack...
+jmp_gen_loop_2:
     jmp gen_loop        ; ... and head back to the top.
+jmp_dir_up:
+    jmp dir_up          ; bcc range hack
 dir_right:
     dec tried_count     ; If we've tried all the directions and failed, ...
-    beq gen_loop        ; ... give up and go back to the top.
-    lda x_coord         ; If x_coord < xSizeCells - 1, we can't go up.
-    inc
-    sbc XSIZECELLS
-    bmi dir_up
-    lda current_cell    ; If cells[current_cell + 1] != 0, we can't go up.
+    beq jmp_gen_loop_2  ; ... give up and go back to the top.
+    lda x_coord         ; If x_coord >= xSizeCells - 1, we can't go right.
+    clc
+    adc #1
+    cmp #XSIZECELLS
+    bcs jmp_dir_up
+    clc
+    lda current_cell    ; If cells[current_cell + 1] != 0, we can't go right.
+    clc
     adc #1
     tax
     lda cells, x
-    bne dir_up
+    bne jmp_dir_up
     inc cell_count
     lda current_cell
     pha ; Push the current cell to the stack.
-    lda XSIZEHORIZ  ; Get (y_coord * XSIZEHORIZ) + x_coord into X ...
+    lda #XSIZEHORIZ  ; Get (y_coord * XSIZEHORIZ) + x_coord into X ...
     ldy y_coord
     jsr multiply
+    clc
     adc x_coord
     tax
     lda cell_count
-    sta cells, x    ; ... then remove the horizontal wall.
+    lda #0
+    sta hwalls, x    ; ... then remove the horizontal wall.
     lda current_cell    ; Mark the cell as visited with cell_count.
+    clc
     adc #1
     tax
     lda cell_count
     sta cells, x
     lda current_cell    ; And update the current cell...
+    clc
     adc #1
     sta current_cell    ; ... to be the new one we've just stepped to.
-    pha current_cell    ; Push the new current cell to the stack...
+    pha ; Push the new current cell to the stack...
     jmp gen_loop        ; ... and head back to the top.
 
 
 ; *** Make Collision Map ***
 make_collision_map:
-    ldx SIZEMAZE ; Start by loading the maze template into the maze.
+    ldx #SIZEMAZE ; Start by loading the maze template into the maze.
     :
         lda maze_template, x
         sta the_maze, x
         dex
         bne :-
-    ; Then load the vertical walls into the maze.
+load_vert:  ; Then load the vertical walls into the maze.
     lda #0
     tax     ; Init x at 0 as the index into the vwalls,
     sta tmp ; ... and tmp at 0 as a loop counter.
-    lxy #16 ; First byte in the maze with vert walls (index into the_maze).
+    ldy #16 ; First byte in the maze with vert walls (index into the_maze).
     vert_loop:
-        lda vwalls, x
+        ; XXX YOU'VE SWITCHED TO LOADING HARDCODED V N H TO TEST THIS SECTION
+        lda vwalls, x; XXX
+        ; lda hard_vert, x ; XXX
+        ; lda hard_vert_zero, x ; XXX
         bne :+
             lda the_maze, y ;
-            sbc #%01000000
+            and #%10111111
             sta the_maze, y ;
         :
         inx
-        lda vwalls, x
+        lda vwalls, x ; XXX
+        ; lda hard_vert, x ; XXX
+        ; lda hard_vert_zero, x ; XXX
         bne :+
             lda the_maze, y ;
-            sbc #%00010000
+            and #%11101111
             sta the_maze, y ;
         :
         inx
-        lda vwalls, x
+        lda vwalls, x ; XXX
+        ; lda hard_vert, x ; XXX
+        ; lda hard_vert_zero, x ; XXX
         bne :+
             lda the_maze, y ;
-            sbc #%00000100
+            and #%11111011
             sta the_maze, y ;
         :
         inx
         lda tmp
         and #%00000011
-        sbc #%00000011
-        bne hop1a
+        cmp #%00000011
+        beq hop1a
         ; If we ain't at the end of the row, also do:
-        lda vwalls, x
+        lda vwalls, x ; XXX
+        ; lda hard_vert, x ; XXX
+        ; lda hard_vert_zero, x ; XXX
         bne :+
             lda the_maze, y ;
-            sbc #%00000001
+            and #%11111110
             sta the_maze, y ;
         :
         inx
@@ -559,74 +640,90 @@ make_collision_map:
     hop2b:
         iny
         inc tmp
-        ; cpx TOTSIZEVERT
+        ; cpx #TOTSIZEVERT
         cpy #108 ; First byte in the maze past the last of the vert walls
         bcc vert_loop; if y < 108, keep looping
-
-    ; Then load the horizontal walls into the maze.
+load_horiz: ; Then load the horizontal walls into the maze.
     lda #0
     tax     ; Init x at 0 as the index into the hwalls,
     sta tmp ; ... and tmp at 0 as a loop counter.
-    lxy #12 ; First byte in the maze with horiz walls (index into the_maze).
+    ldy #12 ; First byte in the maze with horiz walls (index into the_maze).
     horiz_loop:
         lda tmp ; If we're at the first byte in the row, skip the first wall.
-        and #%11111100
-        sbc #%11111100
-        bne hop0
-        lda hwalls, x
+        and #%00000011
+        cmp #%00000000
+        beq hop0
+        lda hwalls, x ; XXX
+        ; lda hard_horiz, x ; XXX
+        ; lda hard_horiz_zero, x ; XXX
         bne :+
             lda the_maze, y ;
-            sbc #%10000000
+            and #%01111111
             sta the_maze, y ;
         :
         inx
     hop0:
-        lda hwalls, x
+        lda hwalls, x ; XXX
+        ; lda hard_horiz, x ; XXX
+        ; lda hard_horiz_zero, x ; XXX
         bne :+
             lda the_maze, y ;
-            sbc #%00100000
+            and #%11011111
             sta the_maze, y ;
         :
         inx
-        lda hwalls, x
+        lda hwalls, x ; XXX
+        ; lda hard_horiz, x ; XXX
+        ; lda hard_horiz_zero, x ; XXX
         bne :+
             lda the_maze, y ;
-            sbc #%00001000
+            and #%11110111
             sta the_maze, y ;
         :
         inx
         lda tmp
         and #%00000011
-        sbc #%00000011
-        bne hop1b
+        cmp #%00000011
+        beq hop1c
         ; If we ain't at the end of the row, also do:
-        lda hwalls, x
+        lda hwalls, x ; XXX
+        ; lda hard_horiz, x ; XXX
+        ; lda hard_horiz_zero, x ; XXX
         bne :+
             lda the_maze, y ;
-            sbc #%00000010
+            and #%11111101
             sta the_maze, y ;
         :
         inx
-        jmp hop2b
+        jmp hop2c
         ; But if we is at the end of the row, do:
-    hop1b:
+    hop1c:
         iny
         iny
         iny
         iny
-    hop2b:
+    hop2c:
         iny
         inc tmp
-        ; cpx TOTSIZEVERT
+        ; cpx #TOTSIZEVERT
         cpy #112 ; First byte in the maze past the last of the horiz walls
         bcc horiz_loop; if y < 112, keep looping
-
-
-    ; Pick one of the 13 horiz lines at random; install the exit there.
+add_exit:   ; Then add the exit.
+    jsr rng ; get random number
+    and #%00000111  ; knock it down to 0 - 7
+    ldy #$08    ; Multiply by 2 (skip vert rows) * 4 bytes per row.
+    jsr multiply
+    clc
+    adc #$0F    ; Scoot down past the top wall.
+    tax
+    lda the_maze, x
+    and #%11111100  ; Remove the last two bits to open the exit.
+    sta the_maze, x
     rts
 
 
 ; *** LOAD MAZE ***
+load_maze:
     ; setup background
     lda #%00000000    ; Disable everything before loading background
     ; first nametable, start by clearing to empty
@@ -642,12 +739,12 @@ make_collision_map:
         :
             lda the_maze, y
             and bit_mask, x
-            beq hop1c
+            beq hop1d
                 lda #$31
-            hop1c:
-            bne hop2c
+            hop1d:
+            bne hop2d
                 lda #$30
-            hop2c:
+            hop2d:
             sta PPU_DATA
             inx
             cpx #8
@@ -671,6 +768,18 @@ make_collision_map:
     sta PPU_ADDR
     sta PPU_SCROLL
     sta PPU_SCROLL
+
+    ; load palettes
+        lda #$3F
+        sta PPU_ADDR
+        ldx #0
+        stx PPU_ADDR ; set PPU address to $3F00
+        :
+            lda palettes, X
+            sta PPU_DATA
+            inx
+            cpx #32
+            bcc :-
     rts
 
 
@@ -750,7 +859,7 @@ check_for_collision:
     lsr
     and #%0111
     tax ; bit mask index
-    lda hard_maze, y
+    lda the_maze, y
     and bit_mask, x ; Sets zero flag in case of collision...
     rts ; ...and returns.
 
@@ -759,14 +868,20 @@ check_for_collision:
 ; multiply - pass in the multiplicand via the accumulator and the multiplier
 ; via the Y register.  The product will get returned via the accumulator.
 multiply:
-sta tmp
+    sta tmp
+    cpy #0
+    beq zero_y
 loop:
-dey
-beq done
-adc tmp
-jmp loop
+    dey
+    beq done
+    clc
+    adc tmp
+    jmp loop
+zero_y:
+    lda #0
 done:
-rts
+    rts
+
 
 ; *** Divide ***
 ; divide - pass in the dividend via the accumulator & the divisor via the Y
@@ -786,6 +901,7 @@ divide:
     iny     ; Otherwise, increse the quotient by 1.
     bne :-  ; If you're not at zero, loop back and subtract some more.
 :
+    clc ; ???
     adc tmp
     rts
 
