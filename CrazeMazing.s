@@ -268,11 +268,6 @@ yes_active_maze:
                     bcc :-
         right_wall:
     :
-    lda controller1_state
-    and #CONTROLLER_A
-    beq :+
-        ; jmp make_maze ; XXX
-    :
 
     ; Player 2
     lda controller2_state
@@ -392,11 +387,6 @@ yes_active_maze:
                     cpx #$0C
                     bcc :-
         right_wall2:
-    :
-    lda controller2_state
-    and #CONTROLLER_A
-    beq :+
-        ; jmp make_maze ; XXX
     :
     jmp restore_return
 
@@ -623,8 +613,7 @@ dir_up:
     clc
     adc x_coord
     tax
-    lda cell_count      ; XXX ... then remove the vertical wall.
-    lda #0
+    lda #$00              ; ... then remove the vertical wall.
     sta vwalls, x
     lda current_cell    ; Mark the cell as visited with cell_count.
     sec
@@ -663,8 +652,7 @@ dir_down:
     clc
     adc x_coord
     tax
-    lda cell_count  ; XXX ... then remove the vertical wall.
-    lda #0
+    lda #0              ; ... then remove the vertical wall.
     sta vwalls, x
     lda current_cell    ; Mark the cell as visited with cell_count.
     clc
@@ -701,7 +689,6 @@ dir_left:
     sec
     sbc #1
     tax
-    lda cell_count  ; XXX
     lda #0
     sta hwalls, x    ; ... then remove the horizontal wall.
     lda current_cell    ; Mark the cell as visited with cell_count.
@@ -774,28 +761,21 @@ load_vert:  ; Then load the vertical walls into the maze.
     sta tmp ; ... and tmp at 0 as a loop counter.
     ldy #16 ; First byte in the maze with vert walls (index into the_maze).
     vert_loop:
-        ; XXX YOU'VE SWITCHED TO LOADING HARDCODED V N H TO TEST THIS SECTION
-        lda vwalls, x; XXX
-        ; lda hard_vert, x ; XXX
-        ; lda hard_vert_zero, x ; XXX
+        lda vwalls, x ;
         bne :+
             lda the_maze, y ;
             and #%10111111
             sta the_maze, y ;
         :
         inx
-        lda vwalls, x ; XXX
-        ; lda hard_vert, x ; XXX
-        ; lda hard_vert_zero, x ; XXX
+        lda vwalls, x ;
         bne :+
             lda the_maze, y ;
             and #%11101111
             sta the_maze, y ;
         :
         inx
-        lda vwalls, x ; XXX
-        ; lda hard_vert, x ; XXX
-        ; lda hard_vert_zero, x ; XXX
+        lda vwalls, x ;
         bne :+
             lda the_maze, y ;
             and #%11111011
@@ -807,9 +787,7 @@ load_vert:  ; Then load the vertical walls into the maze.
         cmp #%00000011
         beq hop1a
         ; If we ain't at the end of the row, also do:
-        lda vwalls, x ; XXX
-        ; lda hard_vert, x ; XXX
-        ; lda hard_vert_zero, x ; XXX
+        lda vwalls, x
         bne :+
             lda the_maze, y ;
             and #%11111110
@@ -839,9 +817,7 @@ load_horiz: ; Then load the horizontal walls into the maze.
         and #%00000011
         cmp #%00000000
         beq hop0
-        lda hwalls, x ; XXX
-        ; lda hard_horiz, x ; XXX
-        ; lda hard_horiz_zero, x ; XXX
+        lda hwalls, x ;
         bne :+
             lda the_maze, y ;
             and #%01111111
@@ -849,18 +825,14 @@ load_horiz: ; Then load the horizontal walls into the maze.
         :
         inx
     hop0:
-        lda hwalls, x ; XXX
-        ; lda hard_horiz, x ; XXX
-        ; lda hard_horiz_zero, x ; XXX
+        lda hwalls, x ;
         bne :+
             lda the_maze, y ;
             and #%11011111
             sta the_maze, y ;
         :
         inx
-        lda hwalls, x ; XXX
-        ; lda hard_horiz, x ; XXX
-        ; lda hard_horiz_zero, x ; XXX
+        lda hwalls, x ;
         bne :+
             lda the_maze, y ;
             and #%11110111
@@ -872,9 +844,7 @@ load_horiz: ; Then load the horizontal walls into the maze.
         cmp #%00000011
         beq hop1c
         ; If we ain't at the end of the row, also do:
-        lda hwalls, x ; XXX
-        ; lda hard_horiz, x ; XXX
-        ; lda hard_horiz_zero, x ; XXX
+        lda hwalls, x ;
         bne :+
             lda the_maze, y ;
             and #%11111101
@@ -958,7 +928,7 @@ load_maze:
         sta PPU_DATA
         dex
         bne :-
-    ; load palettes XXX
+    ; load palettes
         lda #$3F
         sta PPU_ADDR
         ldx #$00
