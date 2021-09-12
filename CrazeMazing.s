@@ -230,7 +230,7 @@ yes_active_maze:
     :
     lda controller1_state
     and #CONTROLLER_RIGHT
-    beq :+
+    beq :++
         lda player1_x ; We use a pixel on the middle of the right side of...
         adc #8 ; ... the sprite for rightward collision detection.
         tax
@@ -253,9 +253,19 @@ yes_active_maze:
             lda player1_x   ; Check for the win.
             cmp #245
             bcc right_wall  ; If we're not out of the maze, keep rolling.
-                lda #$00
+                lda #$00    ; If we're out, turn off movement...
                 sta active_maze
-                ; jmp make_maze ; XXX
+                lda #$3F    ; ... and swap bg palette to our own
+                sta PPU_ADDR
+                lda #$00
+                sta PPU_ADDR ; set PPU address to $3F00
+                ldx #$04
+                :
+                    lda palettes, x
+                    sta PPU_DATA
+                    inx
+                    cpx #$08
+                    bcc :-
         right_wall:
     :
     lda controller1_state
@@ -345,7 +355,7 @@ yes_active_maze:
     :
     lda controller2_state
     and #CONTROLLER_RIGHT
-    beq :+
+    beq :++
         lda player2_x ; We use a pixel on the middle of the right side of...
         adc #8 ; ... the sprite for rightward collision detection.
         tax
@@ -367,10 +377,20 @@ yes_active_maze:
             inc player2_x
             lda player2_x   ; Check for the win.
             cmp #245
-            bcc right_wall2  ; If we're not out of the maze, keep rolling.
-                lda #$00
+            bcc right_wall2 ; If we're not out of the maze, keep rolling.
+                lda #$00    ; If we're out, turn off movement...
                 sta active_maze
-                ; jmp make_maze ; XXX
+                lda #$3F    ; ... and swap bg palette to our own
+                sta PPU_ADDR
+                lda #$00
+                sta PPU_ADDR ; set PPU address to $3F00
+                ldx #$08
+                :
+                    lda palettes, x
+                    sta PPU_DATA
+                    inx
+                    cpx #$0C
+                    bcc :-
         right_wall2:
     :
     lda controller2_state
@@ -1146,7 +1166,7 @@ divide:
 palettes:
 ; background palettes
 .byte $38,$09,$1a,$28 ; greens on tan
-.byte $0f,$27,$06,$15 ; reds on black
+.byte $0f,$06,$27,$15 ; reds on black
 .byte $0f,$01,$1c,$22 ; blues on black
 .byte $0f,$2d,$3d,$30 ; greyscale
 ; sprite palettes
