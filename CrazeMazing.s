@@ -39,6 +39,8 @@ INES_SRAM   = 0 ; No battery-backed RAM
 
 ; Reserve zeropage space for variables
 .segment "ZEROPAGE"
+game_mode: .res 1   ; 0 for title screen, 1 for maze screen
+active_maze: .res 1 ; should the players be able to move?
 random: .res 1 ; random number; gets updated every frame
 player1_x: .res 1
 player1_y: .res 1
@@ -143,6 +145,10 @@ nmi:
 
     ; Player input
     jsr read_controllers
+    lda active_maze
+    bne yes_active_maze
+    jmp no_active_maze
+yes_active_maze:
     ; Player 1
     lda controller1_state
     and #CONTROLLER_UP
@@ -247,7 +253,9 @@ nmi:
             lda player1_x   ; Check for the win.
             cmp #245
             bcc right_wall  ; If we're not out of the maze, keep rolling.
-                jmp make_maze
+                lda #$00
+                sta active_maze
+                ; jmp make_maze ; XXX
         right_wall:
     :
     lda controller1_state
@@ -360,7 +368,9 @@ nmi:
             lda player2_x   ; Check for the win.
             cmp #245
             bcc right_wall2  ; If we're not out of the maze, keep rolling.
-                jmp make_maze
+                lda #$00
+                sta active_maze
+                ; jmp make_maze ; XXX
         right_wall2:
     :
     lda controller2_state
@@ -368,7 +378,31 @@ nmi:
     beq :+
         ; jmp make_maze ; XXX
     :
+    jmp restore_return
 
+no_active_maze:
+    lda controller1_state
+    and #CONTROLLER_A
+    beq :+
+        jmp make_maze
+    :
+    lda controller1_state
+    and #CONTROLLER_START
+    beq :+
+        jmp make_maze
+    :
+    lda controller2_state
+    and #CONTROLLER_A
+    beq :+
+        jmp make_maze
+    :
+    lda controller2_state
+    and #CONTROLLER_START
+    beq :+
+        jmp make_maze
+    :
+
+restore_return:
 	; Restore stashed registers before returning
 	pla
 	tay
@@ -384,14 +418,24 @@ reset:
     lda #0  ; clear the NES RAM
     ldx #0
     :
-        sta $0000, X
-        sta $0100, X
-        sta $0200, X
-        sta $0300, X
-        sta $0400, X
-        sta $0500, X
-        sta $0600, X
-        sta $0700, X
+        sta $0000, x
+        sta $0100, x
+        sta $0200, x
+        sta $0300, x
+        sta $0400, x
+        sta $0500, x
+        sta $0600, x
+        sta $0700, x
+        inx
+        bne :-
+    ; Put all the sprites offscreen (Y=$FF is below the screen)
+    lda #$FE
+    ldx #0
+    :
+        sta oam, x
+        inx
+        inx
+        inx
         inx
         bne :-
 ; load palettes
@@ -400,7 +444,7 @@ reset:
     ldx #$00
     stx PPU_ADDR ; set PPU address to $3F00
     :
-        lda palettes, X
+        lda palettes, x
         sta PPU_DATA
         inx
         cpx #$20 ; 8 palettes at 4 bytes per palette.
@@ -409,7 +453,7 @@ reset:
     sta random
     jsr rng
 
-; setup background
+; load title screen
     lda #%00000000    ; Disable everything before loading background
     ; first nametable, start by clearing to empty
     lda PPU_STATUS ; reset latch
@@ -417,12 +461,46 @@ reset:
     sta PPU_ADDR
     lda #$00
     sta PPU_ADDR
+    ldx #$00
+    :
+        sta PPU_DATA
+        inx
+        bne :-
+    :
+        lda game_title, x
+        sta PPU_DATA
+        inx
+        cpx #$60
+        bne :-
+    ldx #$00
+    lda #$00
+    :
+        sta PPU_DATA
+        inx
+        bne :-
+    :
+        lda press_start, x
+        sta PPU_DATA
+        inx
+        cpx #$60
+        bne :-
+    ldx #$00
+    lda #$00
+    :
+        sta PPU_DATA
+        inx
+        bne :-
 
     lda $00     ; Turn off background scrolling
     sta PPU_ADDR
     sta PPU_ADDR
     sta PPU_SCROLL
     sta PPU_SCROLL
+    lda #%10001000    ; Enable NMI, sprites, and background (table 0)
+    sta PPU_CTRL
+    lda #%00001010    ; Enable sprites & Backgrounds
+    sta PPU_MASK
+    jmp main_loop
 
 ; make maze
 make_maze:
@@ -431,9 +509,11 @@ make_maze:
     jsr make_collision_map ; Translate the walls arrays into collision map.
     jsr load_maze   ; Put the collision map into the PPU as the background.
     jsr turn_stuff_on   ; Turn NMI, sprites, background and Audio on.
+    lda #$01    ; Make maze active.
+    sta active_maze
 
-@main_loop:
-    jmp @main_loop  ; Hold here forever
+main_loop:
+    jmp main_loop  ; Hold here forever
 
 
 ; *** IRQ ***
@@ -829,9 +909,9 @@ load_maze:
     lda #$00
     sta PPU_ADDR
     ; load the_maze maze into ppu nametable
-    ldy #00 ; 120 bytes per map
+    ldy #$00 ; 120 bytes per map
     :
-        ldx #00 ; 8 bits per byte
+        ldx #$00 ; 8 bits per byte
         :
             lda the_maze, y
             and bit_mask, x
@@ -1087,3 +1167,5 @@ bit_mask:
 ; *** Hardcoded Maze Maps (includes base maze template for mazegen) ***
     .include "HardcodedMap.s"
 
+; *** Title Screen Nametable ***
+    .include "TitleScreen.s"
