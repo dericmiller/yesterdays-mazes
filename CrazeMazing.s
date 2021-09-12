@@ -438,18 +438,20 @@ reset:
         inx
         inx
         bne :-
-; load palettes
+; load title screen palette
     lda #$3F
     sta PPU_ADDR
-    ldx #$00
+    lda #$00
     stx PPU_ADDR ; set PPU address to $3F00
+    ldx #$08
     :
         lda palettes, x
         sta PPU_DATA
         inx
-        cpx #$20 ; 8 palettes at 4 bytes per palette.
+        cpx #$0C
         bcc :-
-    lda #$06    ; seed random number generator with non-zero number
+; seed random number generator with non-zero number
+    lda #$06
     sta random
     jsr rng
 
@@ -461,6 +463,7 @@ reset:
     sta PPU_ADDR
     lda #$00
     sta PPU_ADDR
+    lda #$FF
     ldx #$00
     :
         sta PPU_DATA
@@ -473,7 +476,7 @@ reset:
         cpx #$60
         bne :-
     ldx #$00
-    lda #$00
+    lda #$FF
     :
         sta PPU_DATA
         inx
@@ -485,7 +488,7 @@ reset:
         cpx #$60
         bne :-
     ldx #$00
-    lda #$00
+    lda #$FF
     :
         sta PPU_DATA
         inx
@@ -935,6 +938,17 @@ load_maze:
         sta PPU_DATA
         dex
         bne :-
+    ; load palettes XXX
+        lda #$3F
+        sta PPU_ADDR
+        ldx #$00
+        stx PPU_ADDR ; set PPU address to $3F00
+        :
+            lda palettes, x
+            sta PPU_DATA
+            inx
+            cpx #$20
+            bcc :-
     lda #%10001000    ; Enable NMI, sprites, and background (table 0)
     sta PPU_CTRL
     lda #%00011110    ; Enable sprites & Backgrounds
@@ -945,18 +959,6 @@ load_maze:
     sta PPU_SCROLL
     sta PPU_SCROLL
     rts
-; load palettes XXX
-    lda #$3F
-    sta PPU_ADDR
-    ldx #0
-    stx PPU_ADDR ; set PPU address to $3F00
-    :
-        lda palettes, X
-        sta PPU_DATA
-        inx
-        cpx #32
-        bcc :-
-
 
 
 ; *** Turn Stuff Off
@@ -1145,7 +1147,7 @@ palettes:
 ; background palettes
 .byte $38,$09,$1a,$28 ; greens on tan
 .byte $0f,$27,$06,$15 ; reds on black
-.byte $0f,$22,$1c,$01 ; blues on black
+.byte $0f,$01,$1c,$22 ; blues on black
 .byte $0f,$2d,$3d,$30 ; greyscale
 ; sprite palettes
 .byte $38,$09,$1a,$28 ; greens on tan
