@@ -246,6 +246,11 @@ nmi:
                 jmp make_maze
         right_wall:
     :
+    lda controller1_state
+    and #CONTROLLER_A
+    beq :+
+        ; jmp make_maze ; XXX
+    :
 
 	; Restore stashed registers before returning
 	pla
@@ -669,28 +674,30 @@ load_horiz: ; Then load the horizontal walls into the maze.
         ; cpx #TOTSIZEVERT
         cpy #112 ; First byte in the maze past the last of the horiz walls
         bcc horiz_loop; if y < 112, keep looping
-add_exit:   ; Then add the exit.
-    jsr rng ; get random number
-    and #%00000111  ; knock it down to 0 - 7
-    ldy #$08    ; Multiply by 2 (skip vert rows) * 4 bytes per row.
-    jsr multiply
-    clc
-    adc #$0F    ; Scoot down past the top wall.
-    tax
-    lda the_maze, x
-    and #%11111100  ; Remove the last two bits to open the exit.
-    sta the_maze, x
-reset_players:
-    lda #$08    ; Players always start on the far left side of the maze.
-    sta player1_x
-    jsr rng ; Get a random number.
-    and #%00000111  ; Knock it down to 0 - 7.
-    ldy #$08    ; Multiply by 2 (skip vert rows) * 4 bytes per row.
-    jsr multiply
-    clc
-    adc #$3F    ; Scoot down to one of the bottom 8 guaranteed left-side cells.
-    sta player1_y   ; Put the player there.
-    rts
+    add_exit:   ; Then add the exit.
+        jsr rng ; get random number
+        and #%00000111  ; knock it down to 0 - 7
+        ldy #$08    ; Multiply by 2 (skip vert rows) * 4 bytes per row.
+        jsr multiply
+        clc
+        adc #$0F    ; Scoot down past the top wall.
+        tax
+        lda the_maze, x
+        and #%11111100  ; Remove the last two bits to open the exit.
+        sta the_maze, x
+    reset_players:
+        lda #$08    ; Players always start on the far left side of the maze.
+        sta player1_x
+        jsr rng ; Get a random number.
+        and #%00000111  ; Knock it down to 0 - 7.
+        asl    ; Multiply by 16 (8 px per row; skip vert wall rows).
+        asl
+        asl
+        asl
+        adc #$67    ; Scoot down to one of the bottom 8 guaranteed cells.
+        clc
+        sta player1_y   ; Put the player there.
+        rts
 
 ; *** LOAD MAZE ***
 load_maze:
@@ -739,18 +746,17 @@ load_maze:
     sta PPU_SCROLL
     sta PPU_SCROLL
     rts
-
-    ; load palettes XXX
-        lda #$3F
-        sta PPU_ADDR
-        ldx #0
-        stx PPU_ADDR ; set PPU address to $3F00
-        :
-            lda palettes, X
-            sta PPU_DATA
-            inx
-            cpx #32
-            bcc :-
+; load palettes XXX
+    lda #$3F
+    sta PPU_ADDR
+    ldx #0
+    stx PPU_ADDR ; set PPU address to $3F00
+    :
+        lda palettes, X
+        sta PPU_DATA
+        inx
+        cpx #32
+        bcc :-
 
 
 
