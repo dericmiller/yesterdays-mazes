@@ -42,7 +42,10 @@ INES_SRAM   = 0 ; No battery-backed RAM
 random: .res 1 ; random number; gets updated every frame
 player1_x: .res 1
 player1_y: .res 1
+player2_x: .res 1
+player2_y: .res 1
 controller1_state: .res 1
+controller2_state: .res 1
 tmp: .res 1
 x_coord: .res 1
 y_coord: .res 1
@@ -140,6 +143,7 @@ nmi:
 
     ; Player input
     jsr read_controllers
+    ; Player 1
     lda controller1_state
     and #CONTROLLER_UP
     beq :+
@@ -247,6 +251,119 @@ nmi:
         right_wall:
     :
     lda controller1_state
+    and #CONTROLLER_A
+    beq :+
+        ; jmp make_maze ; XXX
+    :
+
+    ; Player 2
+    lda controller2_state
+    and #CONTROLLER_UP
+    beq :+
+        lda player2_x ; We use a pixel on the middle of the right side of...
+        adc #4 ; ... the sprite for rightward collision detection.
+        tax
+        lda player2_y
+        adc #0
+        tay
+        jsr check_for_collision
+        bne up_wall2 ; If there's a wall in the way, don't move.
+            ; Lock horiz to 8-px vert stripe
+            lda player2_x
+            clc
+            adc #4
+            and #%11111000
+            sta player2_x
+            ; Move up
+            dec player2_y
+            ; Y values wrap at 240
+            lda player2_y
+            cmp #240
+            bcc :+
+                lda #239
+                sta player2_y
+        up_wall2:
+    :
+    lda controller2_state
+    and #CONTROLLER_DOWN
+    beq :+
+        lda player2_x ; We use a pixel on the middle of the bottom side of...
+        adc #4 ; ... the sprite for downward collision detection.
+        tax
+        lda player2_y
+        adc #9
+        tay
+        jsr check_for_collision
+        bne down_wall2 ; If there's a wall in the way, don't move.
+            ; Lock horiz to 8-px vert stripe
+            lda player2_x
+            clc
+            adc #4
+            and #%11111000
+            sta player2_x
+            ; Move down
+            inc player2_y
+            ; Y values wrap at 240
+            lda player2_y
+            cmp #240
+            bcc :+
+                lda #0
+                sta player2_y
+        down_wall2:
+    :
+    lda controller2_state
+    and #CONTROLLER_LEFT
+    beq :+
+        lda player2_x ; We use a pixel on the middle of the left side of...
+        sbc #0 ; ... the sprite for leftward collision detection.
+        tax
+        lda player2_y
+        adc #4
+        tay
+        jsr check_for_collision
+        bne left_wall2 ; If there's a wall in the way, don't move.
+            ; Lock vert to 8-px horiz stripe
+            lda player2_y
+            clc
+            adc #4
+            and #%11111000
+            tay
+            dey
+            sty player2_y
+            ; Move left
+            ; X values wrap the same place bytes do, at 256
+            dec player2_x
+        left_wall2:
+    :
+    lda controller2_state
+    and #CONTROLLER_RIGHT
+    beq :+
+        lda player2_x ; We use a pixel on the middle of the right side of...
+        adc #8 ; ... the sprite for rightward collision detection.
+        tax
+        lda player2_y
+        adc #4
+        tay
+        jsr check_for_collision
+        bne right_wall2 ; If there's a wall in the way, don't move.
+            ; Lock vert to 8-px horiz stripe
+            lda player2_y
+            clc
+            adc #4
+            and #%11111000
+            tay
+            dey
+            sty player2_y
+            ; Move right
+            ; X values wrap the same place bytes do, at 256
+            inc player2_x
+            lda player2_x   ; Check for the win.
+            cmp #245
+            bcc right_wall2  ; If we're not out of the maze, keep rolling.
+                jmp make_maze
+        right_wall2:
+    :
+    lda controller2_state
     and #CONTROLLER_A
     beq :+
         ; jmp make_maze ; XXX
@@ -688,6 +805,7 @@ load_horiz: ; Then load the horizontal walls into the maze.
     reset_players:
         lda #$08    ; Players always start on the far left side of the maze.
         sta player1_x
+        sta player2_x
         jsr rng ; Get a random number.
         and #%00000111  ; Knock it down to 0 - 7.
         asl    ; Multiply by 16 (8 px per row; skip vert wall rows).
@@ -696,7 +814,8 @@ load_horiz: ; Then load the horizontal walls into the maze.
         asl
         adc #$67    ; Scoot down to one of the bottom 8 guaranteed cells.
         clc
-        sta player1_y   ; Put the player there.
+        sta player1_y   ; Put the players there.
+        sta player2_y
         rts
 
 ; *** LOAD MAZE ***
@@ -829,39 +948,44 @@ rng:
 
 ; *** Read Controllers ***
 read_controllers:
+    ldx #$08
     ; latch the buttons
     lda #$01
     sta CONTROLLER_1
     lda #$00
     sta CONTROLLER_1
-    ; read controller 1
-    ldx #$08
-    :
-        pha
-        lda CONTROLLER_1
-        ; combine low two bits and store in carry bit
-        and #%00000011
-        cmp #%00000001
-        pla
-        ; rotate carry into controller1_state variable
-        ror
-        dex
-        bne :-
-    sta controller1_state
+    ; read the controllers
+read_loop:
+    lda CONTROLLER_1    ; 1st bit, C1
+    lsr
+    ror controller1_state
+    lda CONTROLLER_2    ; 1st bit, C2
+    lsr
+    ror controller2_state
+    dex
+    bne read_loop
     rts
 
 ; *** Draw Sprites ***
 ; 4 bytes per sprite: y position, which sprite in the sheet, attributes, and x
 ; position (in that order).  256 bytes per page / 4 per sprite = 64 sprites max
 draw_sprites:
-    lda player1_y
+    lda player1_y   ; Player 1
     sta oam + 0
-    lda #$04
+    lda #$04        ; Memory addres #$04 from sprite.chr
     sta oam + 1
     lda #%00000001 ; no flip, pallete 5
     sta oam + 2
     lda player1_x
     sta oam + 3
+    lda player2_y   ; Player 2
+    sta oam + 4
+    lda #$04
+    sta oam + 5
+    lda #%00000010 ; no flip, pallete 5
+    sta oam + 6
+    lda player2_x
+    sta oam + 7
     rts
 
 ; *** Check for Collisions ***
@@ -941,12 +1065,12 @@ palettes:
 ; background palettes
 .byte $38,$09,$1a,$28 ; greens on tan
 .byte $0f,$27,$06,$15 ; reds on black
-.byte $0f,$01,$1c,$22 ; blues on black
+.byte $0f,$22,$1c,$01 ; blues on black
 .byte $0f,$2d,$3d,$30 ; greyscale
 ; sprite palettes
 .byte $38,$09,$1a,$28 ; greens on tan
 .byte $0f,$27,$15,$06 ; reds on black
-.byte $0f,$01,$1c,$22 ; blues on black
+.byte $0f,$22,$1c,$01 ; blues on black
 .byte $0f,$2d,$3d,$30 ; greyscale
 
 ; *** Bit Mask for collision lookup ***
