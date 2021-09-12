@@ -85,6 +85,7 @@ PPU_SCROLL = $2005; Set vert / horiz scrolling
 PPU_ADDR = $2006 ; Specify the address in VRAM to write data to
 PPU_DATA = $2007 ; Read/write to the address specified by $2006
 OAM_DMA = $4014	; Write address from which to upload data into PPU OAM
+APU_STATUS = $4015  ; Writing 0 bits turns off the various audio channels
 CONTROLLER_1 = $4016 ; Poll either controller, read controller 1 status
 CONTROLLER_2 = $4017 ; Read controller 2 status
 CONTROLLER_A      = $01 ; Controller_state holds a byte, each bit of which...
@@ -133,6 +134,9 @@ nmi:
 
     ; Update the random number.
     jsr rng
+
+    ; Draw sprites
+    jsr draw_sprites
 
     ; Player input
     jsr read_controllers
@@ -239,7 +243,7 @@ nmi:
             lda player1_x   ; Check for the win.
             cmp #245
             bcc right_wall  ; If we're not out of the maze, keep rolling.
-                jmp new_maze
+                jmp make_maze
         right_wall:
     :
 
@@ -253,26 +257,37 @@ nmi:
 
 ; *** Reset ***
 reset:
-    ; clear the NES RAM
-    	lda #0
-    	ldx #0
-    	:
-    		sta $0000, X
-    		sta $0100, X
-    		sta $0200, X
-    		sta $0300, X
-    		sta $0400, X
-    		sta $0500, X
-    		sta $0600, X
-    		sta $0700, X
-    		inx
-    		bne :-
+    jsr turn_stuff_off
+
+    lda #0  ; clear the NES RAM
+    ldx #0
+    :
+        sta $0000, X
+        sta $0100, X
+        sta $0200, X
+        sta $0300, X
+        sta $0400, X
+        sta $0500, X
+        sta $0600, X
+        sta $0700, X
+        inx
+        bne :-
+; load palettes
+    lda #$3F
+    sta PPU_ADDR
+    ldx #$00
+    stx PPU_ADDR ; set PPU address to $3F00
+    :
+        lda palettes, X
+        sta PPU_DATA
+        inx
+        cpx #$20 ; 8 palettes at 4 bytes per palette.
+        bcc :-
     lda #$06    ; seed random number generator with non-zero number
     sta random
-new_maze:
     jsr rng
-    jmp skip_init; XXX
-    ; setup background
+
+; setup background
     lda #%00000000    ; Disable everything before loading background
     ; first nametable, start by clearing to empty
     lda PPU_STATUS ; reset latch
@@ -281,81 +296,27 @@ new_maze:
     lda #$00
     sta PPU_ADDR
 
-    jmp skip_hard_maze ; XXX
-    ; load hardcoded maze into nametable
-    ldy #00 ; 120 bytes per map
-    :
-        ldx #00 ; 8 bits per byte
-        :
-            lda hard_maze, y
-            and bit_mask, x
-            beq hop1
-                lda #$31
-            hop1:
-            bne hop2
-                lda #$30
-            hop2:
-            sta PPU_DATA
-            inx
-            cpx #8
-            bne :-
-        iny
-        cpy #120
-        bne :--
-    ; set all attributes to 0
-    lda #0
-    ldx #64 ; 64 bytes
-    :
-        sta PPU_DATA
-        dex
-        bne :-
-
-skip_hard_maze:
-    lda #%10001000    ; Enable NMI, sprites, and background (table 0)
-    sta PPU_CTRL
-    lda #%00011110    ; Enable sprites & Backgrounds
-    sta PPU_MASK
     lda $00     ; Turn off background scrolling
     sta PPU_ADDR
     sta PPU_ADDR
     sta PPU_SCROLL
     sta PPU_SCROLL
 
-    ; load palettes
-    lda #$3F
-    sta PPU_ADDR
-    ldx #0
-    stx PPU_ADDR ; set PPU address to $3F00
-    :
-        lda palettes, X
-        sta PPU_DATA
-        inx
-        cpx #32
-        bcc :-
-skip_init:
-    jmp main
+; make maze
+make_maze:
+    jsr turn_stuff_off  ; Turn NMI, sprites, background and Audio on.
+    jsr maze_gen ; Make the walls arrays.
+    jsr make_collision_map ; Translate the walls arrays into collision map.
+    jsr load_maze   ; Put the collision map into the PPU as the background.
+    jsr turn_stuff_on   ; Turn NMI, sprites, background and Audio on.
+
+@main_loop:
+    jmp @main_loop  ; Hold here forever
+
 
 ; *** IRQ ***
 irq:
-	rti
-
-; *** Main ***
-main:
-    ; initialize main
-    lda #$8
-    sta player1_x
-    lda #$C7
-    sta player1_y
-
-    jsr maze_gen ; XXX
-    jsr make_collision_map ; XXX
-    jsr load_maze
-
-@main_loop:
-    ; Draw screen
-    jsr draw_sprites
-    ; Repeat forever
-    jmp @main_loop
+    rti
 
 
 jmp_make_collision_map: ; beq range hack
@@ -719,8 +680,17 @@ add_exit:   ; Then add the exit.
     lda the_maze, x
     and #%11111100  ; Remove the last two bits to open the exit.
     sta the_maze, x
+reset_players:
+    lda #$08    ; Players always start on the far left side of the maze.
+    sta player1_x
+    jsr rng ; Get a random number.
+    and #%00000111  ; Knock it down to 0 - 7.
+    ldy #$08    ; Multiply by 2 (skip vert rows) * 4 bytes per row.
+    jsr multiply
+    clc
+    adc #$3F    ; Scoot down to one of the bottom 8 guaranteed left-side cells.
+    sta player1_y   ; Put the player there.
     rts
-
 
 ; *** LOAD MAZE ***
 load_maze:
@@ -768,8 +738,9 @@ load_maze:
     sta PPU_ADDR
     sta PPU_SCROLL
     sta PPU_SCROLL
+    rts
 
-    ; load palettes
+    ; load palettes XXX
         lda #$3F
         sta PPU_ADDR
         ldx #0
@@ -780,8 +751,61 @@ load_maze:
             inx
             cpx #32
             bcc :-
+
+
+
+; *** Turn Stuff Off
+; Turn off NMI, sprites, and Audio.
+turn_stuff_off:
+    lda #%00000000
+    sta PPU_CTRL    ; Turn off NMI
+    sta PPU_MASK    ; Turn off sprites & backgrounds
+    sta APU_STATUS  ; Turn off audio
     rts
 
+
+; *** Turn Stuff On
+; Turn NMI, sprites, background and Audio on.
+turn_stuff_on:
+    lda #%10001000    ; Enable NMI, sprites, and background (table 0)
+    sta PPU_CTRL
+    lda #%00011110    ; Enable sprites & Backgrounds
+    sta PPU_MASK
+    lda #%00001111  ; Enable audio channels noise, triangle, pulse 2 & pulse 1
+    sta APU_STATUS
+    rts
+
+
+; *** Load Hardcoded Maze ***
+; The ROM includes one hand-drawn maze.  This subroutine loads it.
+load_hard_maze:
+    ldy #00 ; 120 bytes per map
+    :
+        ldx #00 ; 8 bits per byte
+        :
+            lda hard_maze, y
+            and bit_mask, x
+            beq hop1
+                lda #$31
+            hop1:
+            bne hop2
+                lda #$30
+            hop2:
+            sta PPU_DATA
+            inx
+            cpx #8
+            bne :-
+        iny
+        cpy #120
+        bne :--
+    ; set all attributes to 0
+    lda #0
+    ldx #64 ; 64 bytes
+    :
+        sta PPU_DATA
+        dex
+        bne :-
+    RTS
 
 ; *** RNG ***
 ; Update the zero-page variable 'random' with a new value; gets called every
@@ -800,12 +824,12 @@ rng:
 ; *** Read Controllers ***
 read_controllers:
     ; latch the buttons
-    lda #1
+    lda #$01
     sta CONTROLLER_1
-    lda #0
+    lda #$00
     sta CONTROLLER_1
     ; read controller 1
-    ldx #8
+    ldx #$08
     :
         pha
         lda CONTROLLER_1
@@ -910,12 +934,12 @@ divide:
 palettes:
 ; background palettes
 .byte $38,$09,$1a,$28 ; greens on tan
-.byte $0f,$06,$15,$27 ; reds on black
+.byte $0f,$27,$06,$15 ; reds on black
 .byte $0f,$01,$1c,$22 ; blues on black
 .byte $0f,$2d,$3d,$30 ; greyscale
 ; sprite palettes
 .byte $38,$09,$1a,$28 ; greens on tan
-.byte $0f,$06,$15,$27 ; reds on black
+.byte $0f,$27,$15,$06 ; reds on black
 .byte $0f,$01,$1c,$22 ; blues on black
 .byte $0f,$2d,$3d,$30 ; greyscale
 
