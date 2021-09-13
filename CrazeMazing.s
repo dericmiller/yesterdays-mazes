@@ -266,6 +266,11 @@ yes_active_maze:
                     inx
                     cpx #$08
                     bcc :-
+                lda $00     ; Turn off background scrolling
+                sta PPU_ADDR
+                sta PPU_ADDR
+                sta PPU_SCROLL
+                sta PPU_SCROLL
         right_wall:
     :
 
