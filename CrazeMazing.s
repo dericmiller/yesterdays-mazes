@@ -149,12 +149,15 @@ nmi:
     lda active_maze
     bne yes_active_maze
     jmp no_active_maze
+jmp_handle_controller2:
+    jmp handle_controller2
 yes_active_maze:
     ; Player 1
     lda controller1_state
     and #CONTROLLER_UP
     beq :+
         lda player1_x ; We use a pixel on the middle of the right side of...
+        clc
         adc #4 ; ... the sprite for rightward collision detection.
         tax
         lda player1_y
@@ -173,7 +176,7 @@ yes_active_maze:
             ; Y values wrap at 240
             lda player1_y
             cmp #240
-            bcc :+
+            bcc jmp_handle_controller2
                 lda #239
                 sta player1_y
         up_wall:
@@ -182,6 +185,7 @@ yes_active_maze:
     and #CONTROLLER_DOWN
     beq :+
         lda player1_x ; We use a pixel on the middle of the bottom side of...
+        clc
         adc #4 ; ... the sprite for downward collision detection.
         tax
         lda player1_y
@@ -200,7 +204,7 @@ yes_active_maze:
             ; Y values wrap at 240
             lda player1_y
             cmp #240
-            bcc :+
+            bcc jmp_handle_controller2
                 lda #0
                 sta player1_y
         down_wall:
@@ -209,6 +213,7 @@ yes_active_maze:
     and #CONTROLLER_LEFT
     beq :+
         lda player1_x ; We use a pixel on the middle of the left side of...
+        clc
         sbc #0 ; ... the sprite for leftward collision detection.
         tax
         lda player1_y
@@ -227,12 +232,14 @@ yes_active_maze:
             ; Move left
             ; X values wrap the same place bytes do, at 256
             dec player1_x
+            jmp handle_controller2
         left_wall:
     :
     lda controller1_state
     and #CONTROLLER_RIGHT
     beq :++
         lda player1_x ; We use a pixel on the middle of the right side of...
+        clc
         adc #8 ; ... the sprite for rightward collision detection.
         tax
         lda player1_y
@@ -253,7 +260,7 @@ yes_active_maze:
             inc player1_x
             lda player1_x   ; Check for the win.
             cmp #245
-            bcc right_wall  ; If we're not out of the maze, keep rolling.
+            bcc handle_controller2 ; If we're not out of the maze, keep rolling.
                 lda #$00    ; If we're out, turn off movement...
                 sta active_maze
                 lda #$3F    ; ... and swap bg palette to our own
@@ -281,12 +288,18 @@ yes_active_maze:
         ; jsr choose_bias ;
         ; jmp make_maze ; Uncomment for mazegen testing; just push A to gen maze
     :
+    jmp handle_controller2
 
+jmp_restore_return:
+    jmp restore_return
+
+handle_controller2:
     ; Player 2
     lda controller2_state
     and #CONTROLLER_UP
     beq :+
         lda player2_x ; We use a pixel on the middle of the right side of...
+        clc
         adc #4 ; ... the sprite for rightward collision detection.
         tax
         lda player2_y
@@ -305,7 +318,7 @@ yes_active_maze:
             ; Y values wrap at 240
             lda player2_y
             cmp #240
-            bcc :+
+            bcc jmp_restore_return
                 lda #239
                 sta player2_y
         up_wall2:
@@ -314,6 +327,7 @@ yes_active_maze:
     and #CONTROLLER_DOWN
     beq :+
         lda player2_x ; We use a pixel on the middle of the bottom side of...
+        clc
         adc #4 ; ... the sprite for downward collision detection.
         tax
         lda player2_y
@@ -332,7 +346,7 @@ yes_active_maze:
             ; Y values wrap at 240
             lda player2_y
             cmp #240
-            bcc :+
+            bcc jmp_restore_return
                 lda #0
                 sta player2_y
         down_wall2:
@@ -341,6 +355,7 @@ yes_active_maze:
     and #CONTROLLER_LEFT
     beq :+
         lda player2_x ; We use a pixel on the middle of the left side of...
+        clc
         sbc #0 ; ... the sprite for leftward collision detection.
         tax
         lda player2_y
@@ -359,12 +374,14 @@ yes_active_maze:
             ; Move left
             ; X values wrap the same place bytes do, at 256
             dec player2_x
+            jmp restore_return
         left_wall2:
     :
     lda controller2_state
     and #CONTROLLER_RIGHT
     beq :++
         lda player2_x ; We use a pixel on the middle of the right side of...
+        clc
         adc #8 ; ... the sprite for rightward collision detection.
         tax
         lda player2_y
@@ -385,7 +402,7 @@ yes_active_maze:
             inc player2_x
             lda player2_x   ; Check for the win.
             cmp #245
-            bcc right_wall2 ; If we're not out of the maze, keep rolling.
+            bcc restore_return ; If we're not out of the maze, keep rolling.
                 lda #$00    ; If we're out, turn off movement...
                 sta active_maze
                 lda #$3F    ; ... and swap bg palette to our own
