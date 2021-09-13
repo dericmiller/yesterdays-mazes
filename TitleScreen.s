@@ -1,6 +1,6 @@
 game_title:
     .byte   $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
-    .byte   $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$17,$0E,$1C,$FF,$16,$0A,$23,$0E,$FF,$0D,$0E,$16,$18,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+    .byte   $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$17,$0E,$1C,$FF,$16,$0A,$23,$0E,$FF,$0D,$0E,$16,$18,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
     .byte   $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
 
 press_start:
