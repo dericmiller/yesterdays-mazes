@@ -272,12 +272,14 @@ yes_active_maze:
                 sta PPU_ADDR
                 sta PPU_SCROLL
                 sta PPU_SCROLL
+                jsr choose_bias ; get the bias for the next maze
         right_wall:
     :
     lda controller1_state
     and #CONTROLLER_A
     beq :+
-        ; jmp make_maze ; Uncomment for mazegen testing; just push A to gen maze
+        jsr choose_bias ;
+        jmp make_maze ; Uncomment for mazegen testing; just push A to gen maze
     :
 
 
@@ -398,6 +400,12 @@ yes_active_maze:
                     inx
                     cpx #$0C
                     bcc :-
+                lda $00     ; Turn off background scrolling
+                sta PPU_ADDR
+                sta PPU_ADDR
+                sta PPU_SCROLL
+                sta PPU_SCROLL
+                jsr choose_bias ; get the bias for the next maze
         right_wall2:
     :
     jmp restore_return
@@ -477,6 +485,9 @@ reset:
     sta random
     jsr rng
 
+; Choose the next maze bias.
+    jsr choose_bias
+
 ; load title screen
     lda #%00000000    ; Disable everything before loading background
     ; first nametable, start by clearing to empty
@@ -551,9 +562,6 @@ jmp_make_collision_map: ; beq range hack
 
 ; *** Generate Maze ***
 maze_gen:
-    ; Chose the maze bias.
-    jsr rng         ; Get a random number,
-    sta maze_bias
     ; Reset the cells array to 0s, and the vert & horiz walls arrays to 1.
     ldx #$00
     :
@@ -598,34 +606,32 @@ gen_loop:
     cmp maze_bias   ; bias determines likelihood of vert vs. horiz moves
     bcs vert
     jmp horiz
-
 vert:
     jsr rng
     and #$01
     beq dir_up  ; Given vert, up or down starts as 50:50
     jmp dir_down;
-
 horiz:
     jsr rng
     and #$01
     beq jmp_dir_left ; Given horiz, l or r starts as 50:50
     jmp dir_right
-
 jmp_dir_left:   ; This is because the dir_left label is out of range.
     jmp dir_left
+
 dir_up:
     dec tried_count     ; If we've tried all the directions and failed, ...
     beq gen_loop        ; ... give up and go back to the top.
     lda current_cell    ; If currentCell < xSizeCells - 1, we can't go up.
     cmp #XSIZECELLS
-    bcc dir_down
+    bcc dir_left
     clc
     lda current_cell    ; If cellsArray[currentCell - xSizeCells] != 0, ...
     sec
     sbc #XSIZECELLS      ; ... we can't go up.
     tax
     lda cells, x
-    bne dir_down
+    bne dir_left
     inc cell_count
     lda current_cell
     pha ; Push the curret cell to the stack.
@@ -650,57 +656,17 @@ dir_up:
     sta current_cell    ; ... to be the new one we stepped up to.
     pha                 ; Push the new cell to the stack, ...
     jmp gen_loop        ; ... then head back to the top.
-dir_down:
-    dec tried_count     ; If we've tried all the directions and failed, ...
-    beq gen_loop        ; ... give up and go back to the top.
-    lda #TOTSIZECELLS    ; If current_cell > TOTSIZECELLS - XSIZECELLS, ...
-    sec
-    sbc #XSIZECELLS      ; ... we can't go down.
-    sbc #$01
-    cmp current_cell
-    bcc dir_left
-    clc
-    lda current_cell     ; If cells[current_cell + XSIZECELLS] != 0, ...
-    clc
-    adc #XSIZECELLS      ; ... we can't go down.
-    tax
-    lda cells, x
-    bne dir_left
-    inc cell_count
-    lda current_cell
-    pha ; Push the curret cell to the stack.
-    lda #XSIZEVERT   ; Get (y_coord * XSIZEVERT) + x_coord into X, ...
-    ldy y_coord
-    jsr multiply
-    clc
-    adc x_coord
-    tax
-    lda #0              ; ... then remove the vertical wall.
-    sta vwalls, x
-    lda current_cell    ; Mark the cell as visited with cell_count.
-    clc
-    adc #XSIZECELLS
-    tax
-    lda cell_count
-    sta cells, x
-    lda current_cell    ; And update the current cell...
-    clc
-    adc #XSIZECELLS
-    sta current_cell    ; ... to be the new one we've just stepped to.
-    pha                 ; Push the new current cell to the stack...
-jmp_gen_loop_1:
-    jmp gen_loop        ; ... and head back to the top.
 dir_left:
     dec tried_count     ; If we've tried all the directions and failed, ...
     beq jmp_gen_loop_1        ; ... give up and go back to the top.
     lda x_coord         ; If x_coord == 0, we can't go left.
-    beq dir_right
+    beq dir_down
     lda current_cell    ; If cells[current_cell - 1] != 0, we can't go left.
     sec
     sbc #1
     tax
     lda cells, x
-    bne dir_right
+    bne dir_down
     inc cell_count
     lda current_cell
     pha ; Push the current cell to the stack.
@@ -723,6 +689,46 @@ dir_left:
     lda current_cell    ; And update the current cell...
     sec
     sbc #1
+    sta current_cell    ; ... to be the new one we've just stepped to.
+    pha                 ; Push the new current cell to the stack...
+jmp_gen_loop_1:
+    jmp gen_loop        ; ... and head back to the top.
+dir_down:
+    dec tried_count     ; If we've tried all the directions and failed, ...
+    beq jmp_gen_loop_1        ; ... give up and go back to the top.
+    lda #TOTSIZECELLS    ; If current_cell > TOTSIZECELLS - XSIZECELLS, ...
+    sec
+    sbc #XSIZECELLS      ; ... we can't go down.
+    sbc #$01
+    cmp current_cell
+    bcc dir_right
+    clc
+    lda current_cell     ; If cells[current_cell + XSIZECELLS] != 0, ...
+    clc
+    adc #XSIZECELLS      ; ... we can't go down.
+    tax
+    lda cells, x
+    bne dir_right
+    inc cell_count
+    lda current_cell
+    pha ; Push the curret cell to the stack.
+    lda #XSIZEVERT   ; Get (y_coord * XSIZEVERT) + x_coord into X, ...
+    ldy y_coord
+    jsr multiply
+    clc
+    adc x_coord
+    tax
+    lda #0              ; ... then remove the vertical wall.
+    sta vwalls, x
+    lda current_cell    ; Mark the cell as visited with cell_count.
+    clc
+    adc #XSIZECELLS
+    tax
+    lda cell_count
+    sta cells, x
+    lda current_cell    ; And update the current cell...
+    clc
+    adc #XSIZECELLS
     sta current_cell    ; ... to be the new one we've just stepped to.
     pha                 ; Push the new current cell to the stack...
 jmp_gen_loop_2:
@@ -975,7 +981,7 @@ load_maze:
     rts
 
 
-; *** Turn Stuff Off
+; *** Turn Stuff Off ***
 ; Turn off NMI, sprites, and Audio.
 turn_stuff_off:
     lda #%00000000
@@ -985,7 +991,7 @@ turn_stuff_off:
     rts
 
 
-; *** Turn Stuff On
+; *** Turn Stuff On ***
 ; Turn NMI, sprites, background and Audio on.
 turn_stuff_on:
     lda #%10001000    ; Enable NMI, sprites, and background (table 0)
@@ -994,6 +1000,16 @@ turn_stuff_on:
     sta PPU_MASK
     lda #%00001111  ; Enable audio channels noise, triangle, pulse 2 & pulse 1
     sta APU_STATUS
+    rts
+
+
+; *** Choose Bias ***
+; Choose the next maze bias.
+choose_bias:
+    jsr rng         ; Get a random number,
+    and #%01111111  ; Big horiz biases make stupid mazes (so don't permit them)
+    adc #$20        ; bias lands between decimal 32 & 160
+    sta maze_bias
     rts
 
 
