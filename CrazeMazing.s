@@ -278,10 +278,9 @@ yes_active_maze:
     lda controller1_state
     and #CONTROLLER_A
     beq :+
-        jsr choose_bias ;
-        jmp make_maze ; Uncomment for mazegen testing; just push A to gen maze
+        ; jsr choose_bias ;
+        ; jmp make_maze ; Uncomment for mazegen testing; just push A to gen maze
     :
-
 
     ; Player 2
     lda controller2_state
