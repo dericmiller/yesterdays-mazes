@@ -425,8 +425,8 @@ restore_return:
 reset:
     jsr turn_stuff_off
 
-    lda #0  ; clear the NES RAM
-    ldx #0
+    lda #$00  ; clear the NES RAM
+    ldx #$00
     :
         sta $0000, x
         sta $0100, x
@@ -749,11 +749,12 @@ dir_right:
 
 ; *** Make Collision Map ***
 make_collision_map:
-    ldx #SIZEMAZE ; Start by loading the maze template into the maze.
+    ldx #$00    ; Start by loading the maze template into the maze.
     :
         lda maze_template, x
         sta the_maze, x
-        dex
+        inx
+        cpx #SIZEMAZE
         bne :-
 load_vert:  ; Then load the vertical walls into the maze.
     lda #0
@@ -916,10 +917,10 @@ load_maze:
             hop2d:
             sta PPU_DATA
             inx
-            cpx #8
+            cpx #$08
             bne :-
         iny
-        cpy #120
+        cpy #SIZEMAZE
         bne :--
     ; set all attributes to 0
     lda #0
