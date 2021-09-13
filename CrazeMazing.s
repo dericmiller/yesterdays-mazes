@@ -55,6 +55,7 @@ y_coord: .res 1
 current_cell: .res 1
 cell_count: .res 1
 tried_count: .res 1
+maze_bias: .res 1
 the_maze: .res 120 ; the collision map of the generated maze uses 4 x 30 bytes
 
 ; Reserve a page for sprite data
@@ -273,6 +274,12 @@ yes_active_maze:
                 sta PPU_SCROLL
         right_wall:
     :
+    lda controller1_state
+    and #CONTROLLER_A
+    beq :+
+        ; jmp make_maze ; Uncomment for mazegen testing; just push A to gen maze
+    :
+
 
     ; Player 2
     lda controller2_state
@@ -544,6 +551,9 @@ jmp_make_collision_map: ; beq range hack
 
 ; *** Generate Maze ***
 maze_gen:
+    ; Chose the maze bias.
+    jsr rng         ; Get a random number,
+    sta maze_bias
     ; Reset the cells array to 0s, and the vert & horiz walls arrays to 1.
     ldx #$00
     :
@@ -569,6 +579,7 @@ maze_gen:
     lda #$01
     sta cell_count      ; Initialize cell count at 1.
     sta cells, x        ; Mark starting cell in cells array with count of 1.
+
 gen_loop:
     pla
     cmp #$FF
@@ -584,15 +595,22 @@ gen_loop:
     lda #$5
     sta tried_count ; We try up to all 4 directions once, and count this down.
     jsr rng         ; Get a random number,
-    and #%00000011  ; then drop it to 0-3 to use as a random direction.
-    beq dir_up  ; If random number is zero, start with up.
-    tax         ; Put random number in X,
-    dex         ; subtract one,
-    beq dir_down; keep iterating until you've chosen an initial direction.
-    dex
-    beq jmp_dir_left
-    dex
+    cmp maze_bias   ; bias determines likelihood of vert vs. horiz moves
+    bcs vert
+    jmp horiz
+
+vert:
+    jsr rng
+    and #$01
+    beq dir_up  ; Given vert, up or down starts as 50:50
+    jmp dir_down;
+
+horiz:
+    jsr rng
+    and #$01
+    beq jmp_dir_left ; Given horiz, l or r starts as 50:50
     jmp dir_right
+
 jmp_dir_left:   ; This is because the dir_left label is out of range.
     jmp dir_left
 dir_up:
@@ -1050,7 +1068,7 @@ read_loop:
 draw_sprites:
     lda player1_y   ; Player 1
     sta oam + 0
-    lda #$04        ; Memory addres #$04 from sprite.chr
+    lda #$04        ; Memory address #$04 from sprite.chr has the player sprite
     sta oam + 1
     lda #%00000001 ; no flip, pallete 5
     sta oam + 2
