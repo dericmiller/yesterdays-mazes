@@ -46,8 +46,14 @@ player1_x: .res 1
 player1_y: .res 1
 player2_x: .res 1
 player2_y: .res 1
+player3_x: .res 1
+player3_y: .res 1
+player4_x: .res 1
+player4_y: .res 1
 controller1_state: .res 1
 controller2_state: .res 1
+controller3_state: .res 1
+controller4_state: .res 1
 tmp: .res 1
 x_coord: .res 1
 y_coord: .res 1
@@ -290,8 +296,8 @@ yes_active_maze:
     :
     jmp handle_controller2
 
-jmp_restore_return:
-    jmp restore_return
+jmp_handle_controller3:
+    jmp handle_controller3
 
 handle_controller2:
     ; Player 2
@@ -318,7 +324,7 @@ handle_controller2:
             ; Y values wrap at 240
             lda player2_y
             cmp #240
-            bcc jmp_restore_return
+            bcc jmp_handle_controller3
                 lda #239
                 sta player2_y
         up_wall2:
@@ -346,7 +352,7 @@ handle_controller2:
             ; Y values wrap at 240
             lda player2_y
             cmp #240
-            bcc jmp_restore_return
+            bcc jmp_handle_controller3
                 lda #0
                 sta player2_y
         down_wall2:
@@ -374,7 +380,7 @@ handle_controller2:
             ; Move left
             ; X values wrap the same place bytes do, at 256
             dec player2_x
-            jmp restore_return
+            jmp handle_controller3
         left_wall2:
     :
     lda controller2_state
@@ -402,7 +408,7 @@ handle_controller2:
             inc player2_x
             lda player2_x   ; Check for the win.
             cmp #245
-            bcc restore_return ; If we're not out of the maze, keep rolling.
+            bcc handle_controller3 ; If we're not out of the maze, keep rolling.
                 lda #$00    ; If we're out, turn off movement...
                 sta active_maze
                 lda #$3F    ; ... and swap bg palette to our own
@@ -424,6 +430,290 @@ handle_controller2:
                 jsr choose_bias ; get the bias for the next maze
         right_wall2:
     :
+    lda controller2_state
+    and #CONTROLLER_A
+    beq :+
+        ; jsr choose_bias ;
+        ; jmp make_maze ; Uncomment for mazegen testing; just push A to gen maze
+    :
+    jmp handle_controller3
+
+  jmp_handle_controller4:
+      jmp handle_controller4
+
+  handle_controller3:
+      ; Player 3
+      lda controller3_state
+      and #CONTROLLER_UP
+      beq :+
+          lda player3_x ; We use a pixel on the middle of the right side of...
+          clc
+          adc #4 ; ... the sprite for rightward collision detection.
+          tax
+          lda player3_y
+          adc #0
+          tay
+          jsr check_for_collision
+          bne up_wall3 ; If there's a wall in the way, don't move.
+              ; Lock horiz to 8-px vert stripe
+              lda player3_x
+              clc
+              adc #4
+              and #%11111000
+              sta player3_x
+              ; Move up
+              dec player3_y
+              ; Y values wrap at 240
+              lda player3_y
+              cmp #240
+              bcc jmp_handle_controller4
+                  lda #239
+                  sta player3_y
+          up_wall3:
+      :
+      lda controller3_state
+      and #CONTROLLER_DOWN
+      beq :+
+          lda player3_x ; We use a pixel on the middle of the bottom side of...
+          clc
+          adc #4 ; ... the sprite for downward collision detection.
+          tax
+          lda player3_y
+          adc #9
+          tay
+          jsr check_for_collision
+          bne down_wall3 ; If there's a wall in the way, don't move.
+              ; Lock horiz to 8-px vert stripe
+              lda player3_x
+              clc
+              adc #4
+              and #%11111000
+              sta player3_x
+              ; Move down
+              inc player3_y
+              ; Y values wrap at 240
+              lda player3_y
+              cmp #240
+              bcc jmp_handle_controller4
+                  lda #0
+                  sta player3_y
+          down_wall3:
+      :
+      lda controller3_state
+      and #CONTROLLER_LEFT
+      beq :+
+          lda player3_x ; We use a pixel on the middle of the left side of...
+          clc
+          sbc #0 ; ... the sprite for leftward collision detection.
+          tax
+          lda player3_y
+          adc #4
+          tay
+          jsr check_for_collision
+          bne left_wall3 ; If there's a wall in the way, don't move.
+              ; Lock vert to 8-px horiz stripe
+              lda player3_y
+              clc
+              adc #4
+              and #%11111000
+              tay
+              dey
+              sty player3_y
+              ; Move left
+              ; X values wrap the same place bytes do, at 256
+              dec player3_x
+              jmp handle_controller4
+          left_wall3:
+      :
+      lda controller3_state
+      and #CONTROLLER_RIGHT
+      beq :++
+          lda player3_x ; We use a pixel on the middle of the right side of...
+          clc
+          adc #8 ; ... the sprite for rightward collision detection.
+          tax
+          lda player3_y
+          adc #4
+          tay
+          jsr check_for_collision
+          bne right_wall3 ; If there's a wall in the way, don't move.
+              ; Lock vert to 8-px horiz stripe
+              lda player3_y
+              clc
+              adc #4
+              and #%11111000
+              tay
+              dey
+              sty player3_y
+              ; Move right
+              ; X values wrap the same place bytes do, at 256
+              inc player3_x
+              lda player3_x   ; Check for the win.
+              cmp #245
+              bcc handle_controller4 ; If we're not out of the maze, keep rolling.
+                  lda #$00    ; If we're out, turn off movement...
+                  sta active_maze
+                  lda #$3F    ; ... and swap bg palette to our own
+                  sta PPU_ADDR
+                  lda #$00
+                  sta PPU_ADDR ; set PPU address to $3F00
+                  ldx #$0C
+                  :
+                      lda palettes, x
+                      sta PPU_DATA
+                      inx
+                      cpx #$10
+                      bcc :-
+                  lda $00     ; Turn off background scrolling
+                  sta PPU_ADDR
+                  sta PPU_ADDR
+                  sta PPU_SCROLL
+                  sta PPU_SCROLL
+                  jsr choose_bias ; get the bias for the next maze
+          right_wall3:
+      :
+      lda controller3_state
+      and #CONTROLLER_A
+      beq :+
+          ; jsr choose_bias ;
+          ; jmp make_maze ; Uncomment for mazegen testing; just push A to gen maze
+      :
+      jmp handle_controller4
+
+jmp_restore_return:
+    jmp restore_return
+
+handle_controller4:
+    ; Player 4
+    lda controller4_state
+    and #CONTROLLER_UP
+    beq :+
+        lda player4_x ; We use a pixel on the middle of the right side of...
+        clc
+        adc #4 ; ... the sprite for rightward collision detection.
+        tax
+        lda player4_y
+        adc #0
+        tay
+        jsr check_for_collision
+        bne up_wall4 ; If there's a wall in the way, don't move.
+            ; Lock horiz to 8-px vert stripe
+            lda player4_x
+            clc
+            adc #4
+            and #%11111000
+            sta player4_x
+            ; Move up
+            dec player4_y
+            ; Y values wrap at 240
+            lda player4_y
+            cmp #240
+            bcc jmp_restore_return
+                lda #239
+                sta player4_y
+        up_wall4:
+    :
+    lda controller4_state
+    and #CONTROLLER_DOWN
+    beq :+
+        lda player4_x ; We use a pixel on the middle of the bottom side of...
+        clc
+        adc #4 ; ... the sprite for downward collision detection.
+        tax
+        lda player4_y
+        adc #9
+        tay
+        jsr check_for_collision
+        bne down_wall4 ; If there's a wall in the way, don't move.
+            ; Lock horiz to 8-px vert stripe
+            lda player4_x
+            clc
+            adc #4
+            and #%11111000
+            sta player4_x
+            ; Move down
+            inc player4_y
+            ; Y values wrap at 240
+            lda player4_y
+            cmp #240
+            bcc jmp_restore_return
+                lda #0
+                sta player4_y
+        down_wall4:
+    :
+    lda controller4_state
+    and #CONTROLLER_LEFT
+    beq :+
+        lda player4_x ; We use a pixel on the middle of the left side of...
+        clc
+        sbc #0 ; ... the sprite for leftward collision detection.
+        tax
+        lda player4_y
+        adc #4
+        tay
+        jsr check_for_collision
+        bne left_wall4 ; If there's a wall in the way, don't move.
+            ; Lock vert to 8-px horiz stripe
+            lda player4_y
+            clc
+            adc #4
+            and #%11111000
+            tay
+            dey
+            sty player4_y
+            ; Move left
+            ; X values wrap the same place bytes do, at 256
+            dec player4_x
+            jmp restore_return
+        left_wall4:
+    :
+    lda controller4_state
+    and #CONTROLLER_RIGHT
+    beq :++
+        lda player4_x ; We use a pixel on the middle of the right side of...
+        clc
+        adc #8 ; ... the sprite for rightward collision detection.
+        tax
+        lda player4_y
+        adc #4
+        tay
+        jsr check_for_collision
+        bne right_wall4 ; If there's a wall in the way, don't move.
+            ; Lock vert to 8-px horiz stripe
+            lda player4_y
+            clc
+            adc #4
+            and #%11111000
+            tay
+            dey
+            sty player4_y
+            ; Move right
+            ; X values wrap the same place bytes do, at 256
+            inc player4_x
+            lda player4_x   ; Check for the win.
+            cmp #245
+            bcc restore_return ; If we're not out of the maze, keep rolling.
+                lda #$00    ; If we're out, turn off movement...
+                sta active_maze
+                lda #$3F    ; ... and swap bg palette to our own
+                sta PPU_ADDR
+                lda #$00
+                sta PPU_ADDR ; set PPU address to $3F00
+                ldx #$20
+                :
+                    lda palettes, x
+                    sta PPU_DATA
+                    inx
+                    cpx #$24
+                    bcc :-
+                lda $00     ; Turn off background scrolling
+                sta PPU_ADDR
+                sta PPU_ADDR
+                sta PPU_SCROLL
+                sta PPU_SCROLL
+                jsr choose_bias ; get the bias for the next maze
+        right_wall4:
+    :
     jmp restore_return
 
 no_active_maze:
@@ -443,6 +733,26 @@ no_active_maze:
         jmp make_maze
     :
     lda controller2_state
+    and #CONTROLLER_START
+    beq :+
+        jmp make_maze
+    :
+    lda controller3_state
+    and #CONTROLLER_A
+    beq :+
+        jmp make_maze
+    :
+    lda controller3_state
+    and #CONTROLLER_START
+    beq :+
+        jmp make_maze
+    :
+    lda controller4_state
+    and #CONTROLLER_A
+    beq :+
+        jmp make_maze
+    :
+    lda controller4_state
     and #CONTROLLER_START
     beq :+
         jmp make_maze
@@ -925,6 +1235,8 @@ load_horiz: ; Then load the horizontal walls into the maze.
         lda #$08    ; Players always start on the far left side of the maze.
         sta player1_x
         sta player2_x
+        sta player3_x
+        sta player4_x
         jsr rng ; Get a random number.
         and #%00000111  ; Knock it down to 0 - 7.
         asl    ; Multiply by 16 (8 px per row; skip vert wall rows).
@@ -935,6 +1247,8 @@ load_horiz: ; Then load the horizontal walls into the maze.
         clc
         sta player1_y   ; Put the players there.
         sta player2_y
+        sta player3_y
+        sta player4_y
         rts
 
 ; *** LOAD MAZE ***
@@ -1083,7 +1397,7 @@ read_controllers:
     lda #$00
     sta CONTROLLER_1
     ; read the controllers
-read_loop:
+read_loop1:
     lda CONTROLLER_1    ; 1st bit, C1
     lsr
     ror controller1_state
@@ -1091,7 +1405,17 @@ read_loop:
     lsr
     ror controller2_state
     dex
-    bne read_loop
+    bne read_loop1
+    ldx #08
+read_loop2:
+    lda CONTROLLER_1    ; 1st bit, C3
+    lsr
+    ror controller3_state
+    lda CONTROLLER_2    ; 1st bit, C4
+    lsr
+    ror controller4_state
+    dex
+    bne read_loop2
     rts
 
 ; *** Draw Sprites ***
@@ -1110,11 +1434,28 @@ draw_sprites:
     sta oam + 4
     lda #$04
     sta oam + 5
-    lda #%00000010 ; no flip, pallete 5
+    lda #%00000010 ; no flip, pallete 6
     sta oam + 6
     lda player2_x
     sta oam + 7
+    lda player3_y   ; Player 3
+    sta oam + 8
+    lda #$04        ; Memory address #$04 from sprite.chr has the player sprite
+    sta oam + 9
+    lda #%00000011 ; no flip, pallete 7
+    sta oam + 10
+    lda player3_x
+    sta oam + 11
+    lda player4_y   ; Player 4
+    sta oam + 12
+    lda #$04        ; Memory address #$04 from sprite.chr has the player sprite
+    sta oam + 13
+    lda #%00000000 ; no flip, pallete 4
+    sta oam + 14
+    lda player4_x
+    sta oam + 15
     rts
+
 
 ; *** Check for Collisions ***
 check_for_collision:
@@ -1190,16 +1531,20 @@ divide:
 
 ; *** Hardcoded Palettes ***
 palettes:
-; background palettes
-.byte $38,$09,$1a,$28 ; greens on tan
-.byte $0f,$06,$27,$15 ; reds on black
-.byte $0f,$01,$1c,$22 ; blues on black
-.byte $0f,$2d,$3d,$30 ; greyscale
-; sprite palettes
-.byte $38,$09,$1a,$28 ; greens on tan
-.byte $0f,$27,$15,$06 ; reds on black
-.byte $0f,$22,$1c,$01 ; blues on black
-.byte $0f,$2d,$3d,$30 ; greyscale
+; initial background palettes
+.byte $38,$09,$1A,$28 ; greens on tan (default maze)
+.byte $0F,$06,$27,$15 ; reds on black (P1 Win)
+.byte $0F,$01,$1C,$22 ; blues on black (P2 Win)
+.byte $2D,$0F,$3D,$30 ; greyscale (P3 Win)
+; initial sprite palettes
+.byte $38,$13,$23,$03 ; purples on tan
+.byte $0F,$27,$15,$06 ; reds on black
+.byte $0F,$22,$1C,$01 ; blues on black
+.byte $2D,$3D,$30,$0F ; greyscale
+; extended palettes
+.byte $0F,$03,$23,$13 ; purples on tan (P4 Win)
+
+
 
 ; *** Bit Mask for collision lookup ***
 bit_mask:
@@ -1211,6 +1556,7 @@ bit_mask:
 .byte %00000100
 .byte %00000010
 .byte %00000001
+
 
 ; *** Hardcoded Maze Maps (includes base maze template for mazegen) ***
     .include "HardcodedMap.s"
