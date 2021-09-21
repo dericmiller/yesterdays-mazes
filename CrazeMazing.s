@@ -42,6 +42,7 @@ INES_SRAM   = 0 ; No battery-backed RAM
 game_mode: .res 1   ; 0 for title screen, 1 for maze screen
 active_maze: .res 1 ; should the players be able to move?
 random: .res 1 ; random number; gets updated every frame
+four_player: .res 1
 player1_x: .res 1
 player1_y: .res 1
 player2_x: .res 1
@@ -55,6 +56,7 @@ controller2_state: .res 1
 controller3_state: .res 1
 controller4_state: .res 1
 tmp: .res 1
+tmp2: .res 1
 x_coord: .res 1
 y_coord: .res 1
 ; mazegen variables
@@ -442,6 +444,10 @@ handle_controller2:
       jmp handle_controller4
 
   handle_controller3:
+      lda four_player
+      bne :+
+          jmp restore_return
+      :
       ; Player 3
       lda controller3_state
       and #CONTROLLER_UP
@@ -584,6 +590,8 @@ jmp_restore_return:
     jmp restore_return
 
 handle_controller4:
+    lda four_player
+    beq jmp_restore_return
     ; Player 4
     lda controller4_state
     and #CONTROLLER_UP
@@ -737,6 +745,10 @@ no_active_maze:
     beq :+
         jmp make_maze
     :
+    lda four_player ; are we in 4-player mode?
+    bne all_4
+    jmp restore_return
+all_4:
     lda controller3_state
     and #CONTROLLER_A
     beq :+
@@ -770,7 +782,6 @@ restore_return:
 ; *** Reset ***
 reset:
     jsr turn_stuff_off
-
     lda #$00  ; clear the NES RAM
     ldx #$00
     :
@@ -784,6 +795,8 @@ reset:
         sta $0700, x
         inx
         bne :-
+    ; Check for four-player adapter
+    jsr check_for_four_player
     ; Put all the sprites offscreen (Y=$FF is below the screen)
     lda #$FE
     ldx #0
@@ -841,7 +854,7 @@ reset:
         inx
         bne :-
     :
-        lda press_start, x
+        lda press_start, x ; xxx ???
         sta PPU_DATA
         inx
         cpx #$60
@@ -1406,7 +1419,7 @@ read_loop1:
     ror controller2_state
     dex
     bne read_loop1
-    ldx #08
+    ldx #$08
 read_loop2:
     lda CONTROLLER_1    ; 1st bit, C3
     lsr
@@ -1416,6 +1429,34 @@ read_loop2:
     ror controller4_state
     dex
     bne read_loop2
+    rts
+
+
+; *** Check for 4-Player Adapter ***
+check_for_four_player:
+    jsr read_controllers
+    ldx #$08
+read_loop3:
+    lda CONTROLLER_1    ; 1st bit, ID Code 1
+    lsr
+    ror tmp
+    lda CONTROLLER_2    ; 1st bit, ID Code 2
+    lsr
+    ror tmp2
+    dex
+    bne read_loop3
+    lda tmp
+    cmp #%00001000  ; These are 4-player adapter...
+    bne not_four
+    lda tmp2
+    cmp #%00000100  ; ... ID bytes.
+    bne not_four
+    lda #$01
+    sta four_player
+    rts
+not_four:
+    lda #$00
+    sta four_player
     rts
 
 ; *** Draw Sprites ***
@@ -1440,20 +1481,23 @@ draw_sprites:
     sta oam + 7
     lda player3_y   ; Player 3
     sta oam + 8
-    lda #$04        ; Memory address #$04 from sprite.chr has the player sprite
-    sta oam + 9
-    lda #%00000011 ; no flip, pallete 7
-    sta oam + 10
-    lda player3_x
-    sta oam + 11
-    lda player4_y   ; Player 4
-    sta oam + 12
-    lda #$04        ; Memory address #$04 from sprite.chr has the player sprite
-    sta oam + 13
-    lda #%00000000 ; no flip, pallete 4
-    sta oam + 14
-    lda player4_x
-    sta oam + 15
+    lda four_player ; Are we in four-player mode
+    beq :+
+        lda #$04        ; Memory address #$04 in sprite.chr has the sprite
+        sta oam + 9
+        lda #%00000011 ; no flip, pallete 7
+        sta oam + 10
+        lda player3_x
+        sta oam + 11
+        lda player4_y   ; Player 4
+        sta oam + 12
+        lda #$04        ; Memory address #$04 in sprite.chr has the sprite
+        sta oam + 13
+        lda #%00000000 ; no flip, pallete 4
+        sta oam + 14
+        lda player4_x
+        sta oam + 15
+    :
     rts
 
 
