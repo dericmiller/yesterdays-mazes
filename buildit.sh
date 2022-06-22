@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 set -e
-ca65 CrazeMazing.s -g -o CrazeMazing.o
-ld65 -o CrazeMazing.nes -C CrazeMazing.cfg CrazeMazing.o -m CrazeMazing.map.txt -Ln CrazeMazing.labels.txt --dbgfile CrazeMazing.nes.dbg
+ca65 YesterdaysMazes.s -g -o YesterdaysMazes.o
+ld65 -o YesterdaysMazes.nes -C YesterdaysMazes.cfg YesterdaysMazes.o -m YesterdaysMazes.map.txt -Ln YesterdaysMazes.labels.txt --dbgfile YesterdaysMazes.nes.dbg
